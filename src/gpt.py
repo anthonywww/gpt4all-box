@@ -137,7 +137,6 @@ My name is now Bob.
         ###############################################################
         
         prompt = self._build_prompt(messages)
-        print(prompt)
 
         output = self.gpt4all.generate(
             prompt=prompt,
