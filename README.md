@@ -43,7 +43,11 @@ docker run --name gpt4all-box \
 
 ### Environment Variables
 
-| Name                | Default           | Description                                                                            |
-|---------------------|-------------------|----------------------------------------------------------------------------------------|
-| SYSTEM_MESSAGE      |                   | Set an announcement message to send to clients on connection.                          |
-| HEARTBEAT_INTERVAL  | 10000             | How often events are processed internally, such as session pruning.                    |
+| Name                       | Default           | Description                                                                            |
+|----------------------------|-------------------|----------------------------------------------------------------------------------------|
+| MODEL_THREADS              | 4                 | Number of CPU threads for the LLM agent to use.                                        |
+| SYSTEM_MESSAGE             |                   | Set an announcement message to send to clients on connection.                          |
+| HEARTBEAT_INTERVAL         | 5000              | How often events are processed internally, such as session pruning.                    |
+| MAX_IDLE_SESSION_DURATION  | 180000            | Execute stale session purge after this period.                                         |
+| SSL_KEY                    |                   | Path to SSL key file in PEM format.                                                    |
+| SSL_CERT                   |                   | Path to SSL cert file in PEM format.                                                   |

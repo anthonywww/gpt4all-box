@@ -32,8 +32,10 @@ class Server():
         self.heartbeat_interval = os.getenv("HEARTBEAT_INTERVAL", HEARTBEAT_INTERVAL)
         self.max_idle_session_duration = os.getenv("MAX_IDLE_SESSION_DURATION", MAX_IDLE_SESSION_DURATION)
         self.model_threads = int(os.getenv("MODEL_THREADS", MODEL_THREADS))
+        self.ssl_key = os.getenv("SSL_KEY", None)
+        self.ssl_cert = os.getenv("SSL_CERT", None)
 
-        self.server = WebsocketServer(host=address, port=port,loglevel=logging.WARNING)
+        self.server = WebsocketServer(host=address, port=port, loglevel=logging.WARNING, key=self.ssl_key, cert=self.ssl_cert)
         self.server.set_fn_new_client(self.on_connect)
         self.server.set_fn_client_left(self.on_disconnect)
         self.server.set_fn_message_received(self.on_message)
