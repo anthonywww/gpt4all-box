@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html>
+	<head>
+		<title>gpt4all-box CLI Example</title>
+		<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/jquery.terminal/2.35.3/css/jquery.terminal.min.css" integrity="sha512-n2+LuRvhKk3BNdFsFft4FBZvY5bxyi/TjCzNa6zgqYDHOn+3HM/kNdBt3CtcCRXkraGvx1ygalEa4/Ozo7Tf9w==" crossorigin="anonymous" referrerpolicy="no-referrer" />
+		<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/4.7.0/css/font-awesome.min.css" integrity="sha512-SfTiTlX6kk+qitfevl/7LibUOeJWlt9rbyDn92a1DqWOw9vWG2MFoays0sgObmWazO5BQPiFucnnEAjpAB+/Sw==" crossorigin="anonymous" referrerpolicy="no-referrer" />
+		<style>
+			/*
+			:root {
+				--color: #7FFF73;
+				--background: #002316;
+				--size: 1.4;
+				--glow: 1;
+				--animation: terminal-blink;
+			}
+			*/
+			.terminal, .cmd {
+				background: #212125;
+				color: #dddddd;
+				--size: 1.5;
+			}
+			.terminal .inverted, .cmd .inverted, .cmd .cursor.blink {
+				background-color: #dddddd;
+				color: #212125;
+			}
+			/*
+			@-webkit-keyframes terminal-blink {
+				0%, 100% {
+					background-color: #fff;
+					color: #0f0;
+				}
+				50% {
+					background-color: #0e0;
+					color: #fff;
+				}
+			}
+			@-ms-keyframes terminal-blink {
+				0%, 100% {
+					background-color: #fff;
+					color: #0f0;
+				}
+				50% {
+					background-color: #0e0;
+					color: #fff;
+				}
+			}
+			@-moz-keyframes terminal-blink {
+				0%, 100% {
+					background-color: #fff;
+					color: #0f0;
+				}
+				50% {
+					background-color: #0e0;
+					color: #fff;
+				}
+			}
+			@keyframes terminal-blink {
+				0%, 50% {
+					background-color: rgba(255, 255, 255, 0.8);
+					border: 1px solid rgba(255, 255, 255, 0.8);
+					color: #212125;
+				}
+				51%, 100% {
+					background-color: rgba(255, 255, 255, 0.0);
+					color: #d1d1d1;
+				}
+			}
+			*/
+		</style>
+	</head>
+	<body id="terminal">
+		<noscript>
+			<span style="color:#FF0000;font-weight:bold;font-size:20px;">JavaScript is required!</span>
+		</noscript>
+	</body>
+	<script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.7.0/jquery.min.js" integrity="sha512-3gJwYpMe3QewGELv8k/BX9vcqhryRdzRMxVfq6ngyWXwo03GFEzjsUm8Q7RZcHPHksttq7/GFoxjCVUjkjvPdw==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+	<script src="https://cdnjs.cloudflare.com/ajax/libs/jquery.terminal/2.35.3/js/jquery.terminal.min.js" integrity="sha512-4UXIe0artS1TnsU7H61g9LSlTv10EJbE8aKxm15O5kwpWzl2Ox0kPARFqvihFI5vu8UJsuKciRia1Qy6Fn3miA==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+	<!--
+	This is currently outdated by CloudFlare :( must use unpkg instead
+	<script src="https://cdnjs.cloudflare.com/ajax/libs/reconnecting-websocket/1.0.0/reconnecting-websocket.min.js" integrity="sha512-B4skI5FiLurS86aioJx9VfozI1wjqrn6aTdJH+YQUmCZum/ZibPBTX55k5d9XM6EsKePDInkLVrN7vPmJxc1qA==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+	-->
+	<script src="https://unpkg.com/reconnecting-websocket@4.4.0/dist/reconnecting-websocket-iife.min.js" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+	<script src="./cli.js" defer></script>
+	<script src="./client.js" defer></script>
+</html>

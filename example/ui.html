@@ -1,0 +1,189 @@
+<!DOCTYPE html>
+<html>
+	<head>
+		<title>gpt4all-box UI Example</title>
+		<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/bulma/0.9.4/css/bulma.min.css" integrity="sha512-HqxHUkJM0SYcbvxUw5P60SzdOTy/QVwA1JJrvaXJv4q7lmbDZCmZaqz01UPOaQveoxfYRv1tHozWGPMcuTBuvQ==" crossorigin="anonymous" referrerpolicy="no-referrer" />
+		<!--
+		<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/bulma-prefers-dark/0.1.0-beta.1/bulma-prefers-dark.min.css" integrity="sha512-8L9NjgWBr9opkijcN9ZZCzzl7T3hVqji0baeKdTvfq1VN119XV4RNCGGI6vAF8ygQkSK0Qew84toTqqpzmbxUw==" crossorigin="anonymous" referrerpolicy="no-referrer" />
+		-->
+		<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/4.7.0/css/font-awesome.min.css" integrity="sha512-SfTiTlX6kk+qitfevl/7LibUOeJWlt9rbyDn92a1DqWOw9vWG2MFoays0sgObmWazO5BQPiFucnnEAjpAB+/Sw==" crossorigin="anonymous" referrerpolicy="no-referrer" />
+		<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/themes/prism.min.css" integrity="sha512-tN7Ec6zAFaVSG3TpNAKtk4DOHNpSwKHxxrsiw4GHKESGPs5njn/0sMCUMl2svV4wo4BK/rCP7juYz+zx+l6oeQ==" crossorigin="anonymous" referrerpolicy="no-referrer" />
+		<!--
+		The following are either outdated or not available on CloudFlare's cdnjs...
+		Must use unpkg instead :(
+		-->
+		<link rel="stylesheet" href="https://unpkg.com/bulma-slider@2.0.5/dist/css/bulma-slider.min.css" crossorigin="anonymous" referrerpolicy="no-referrer" />
+		<link rel="stylesheet" href="./ui.css">
+	</head>
+	<body>
+		<section class="section">
+			<div class="columns">
+				<div class="column">
+					<div class="box">
+						<h3 class="title is-3">Connection Manager</h3>
+
+						<div class="field">
+							<label class="label">Server</label>
+							<div class="control has-icons-left">
+								<input id="server" class="input" type="text" value="ws://localhost:8184" placeholder="wss://example.com">
+								<span class="icon is-small is-left">
+									<i class="fa fa-bolt"></i>
+								</span>
+								<p class="help">The gpt4all-box WebSocket server to connect to.</p>
+							</div>
+						</div>
+
+						<div class="buttons">
+							<!-- class: is-loading -->
+							<button id="connect" class="button is-success"><i class="fa fa-plug"></i>&nbsp;Connect</button>
+						</div>
+					</div>
+
+					<div class="box">
+						<h3 class="title is-3">Session Control</h3>
+
+						<div class="field">
+							<label class="label">Model <i class="fa fa-sitemap"></i></label>
+							<div class="control has-icons-left">
+								<div class="select is-fullwidth">
+									<select id="model" disabled>
+										<option value="ggml-gpt4all-j-v1.3-groovy.bin" title="Current best commercially licensable model based on GPT-J and trained by Nomic AI on the latest curated GPT4All dataset.">ggml-gpt4all-j-v1.3-groovy.bin</option>
+										<option value="ggml-gpt4all-l13b-snoozy.bin" title="Current best non-commercially licensable model based on Llama 13b and trained by Nomic AI on the latest curated GPT4All dataset." selected>ggml-gpt4all-l13b-snoozy.bin (Default)</option>
+										<!-- others -->
+										<option value="ggml-mpt-7b-chat.bin" title="Current best non-commercially licensable chat model based on MPT and trained by Mosaic ML.">ggml-mpt-7b-chat.bin</option>
+										<option value="ggml-gpt4all-j-v1.2-jazzy.bin" title="A commercially licensable model based on GPT-J and trained by Nomic AI on the v2 GPT4All dataset.">ggml-gpt4all-j-v1.2-jazzy.bin</option>
+										<option value="ggml-gpt4all-j-v1.1-breezy.bin" title="A commercially licensable model based on GPT-J and trained by Nomic AI on the v1 GPT4All dataset.">ggml-gpt4all-j-v1.1-breezy.bin</option>
+										<option value="ggml-gpt4all-j.bin" title="A commercially licensable model based on GPT-J and trained by Nomic AI on the v0 GPT4All dataset.">ggml-gpt4all-j.bin</option>
+										<option value="ggml-vicuna-7b-1.1-q4_2.bin" title="A non-commercially licensable model based on Llama 7b and trained by teams from UC Berkeley, CMU, Stanford, MBZUAI, and UC San Diego.">ggml-vicuna-7b-1.1-q4_2.bin</option>
+										<option value="ggml-vicuna-13b-1.1-q4_2.bin" title="A non-commercially licensable model based on Llama 13b and trained by teams from UC Berkeley, CMU, Stanford, MBZUAI, and UC San Diego.">ggml-wizardLM-7B.q4_2.bin</option>
+										<option value="ggml-wizardLM-7B.q4_2.bin" title="A non-commercially licensable model based on Llama 7b and trained by Microsoft and Peking University.">ggml-wizardLM-7B.q4_2.bin</option>
+										<option value="ggml-stable-vicuna-13B.q4_2.bin" title="A non-commercially licensable model based on Llama 13b and RLHF trained by Stable AI.">ggml-stable-vicuna-13B.q4_2.bin</option>
+										<option value="ggml-mpt-7b-base.bin" title="A commercially licensable model base pre-trained by Mosaic ML.">ggml-mpt-7b-base.bin</option>
+										<option value="ggml-nous-gpt4-vicuna-13b.bin" title="A non-commercially licensable model based on Vicuna 13b, fine-tuned on ~180,000 instructions, trained by Nous Research.">ggml-nous-gpt4-vicuna-13b.bin</option>
+										<option value="ggml-mpt-7b-instruct.bin" title="A commericially licensable instruct model based on MPT and trained by Mosaic ML.">ggml-mpt-7b-instruct.bin</option>
+									</select>
+								</div>
+								<div class="icon is-small is-left">
+									<i class="fa fa-file"></i>
+									</div>
+								<p class="help">The LLM model to use. See <a href="https://gpt4all.io/index.html" target="_blank">gpt4all</a> for more info. It should be noted the more parameters a model has, the slower it will take to process a response, however the more accurate the result.</p>
+							</div>
+						</div>
+
+						<div class="field">
+							<label class="label">Temperature <i class="fa fa-thermometer-half"></i></label>
+							<div class="control">
+								<input id="temperature" class="slider has-output is-fullwidth" type="range" min="0.0" max="1.0" value="0.8" step="0.1" disabled>
+								<output for="temperature">0.8</output>
+								<p class="help">Higher values like 0.8 will make the output more random (creative), while lower values like 0.2 will make it more focused and deterministic (precise).</p>
+							</div>
+						</div>
+						
+						<div class="field">
+							<label class="label">Session <i class="fa fa-tag"></i></label>
+							<div class="control has-icons-left">
+								<div class="select is-fullwidth">
+									<select id="session" disabled>
+										<option value="" title="Start a new session." selected>(None)</option>
+									</select>
+								</div>
+								<div class="icon is-small is-left">
+									<i class="fa fa-file"></i>
+									</div>
+								<p class="help">Use a specific session.</p>
+							</div>
+						</div>
+						
+						<div class="buttons">
+							<button id="new-session" class="button is-success" title="Creates a new session based on the parameters specified." disabled><i class="fa fa-plus"></i>&nbsp;Create Session</button>
+							<button id="kill" class="button is-warning" title="This can be used if the agent becomes unstable, or you want to start fresh." disabled><i class="fa fa-times"></i>&nbsp;Kill Session</button>
+						</div>
+					</div>
+
+					<!--
+					<div class="box">
+						<h3 class="title is-3">Current Session</h3>
+						<div id="session-information">
+							<table class="table is-striped is-fullwidth">
+								<tbody class="no-select">
+									<tr>
+										<td><i class="fa fa-plug"></i>&nbsp;State</td>
+										<td><span class="tag is-danger"><i class="fa fa-times"></i>&nbsp;Disconnected</span></td>
+									</tr>
+									<tr>
+										<td><i class="fa fa-exchange"></i>&nbsp;Ping Avg.</td>
+										<td>--</td>
+									</tr>
+									<tr>
+										<td><i class="fa fa-file"></i>&nbsp;Current Model</td>
+										<td>--</td>
+									</tr>
+								</tbody>
+							</table>
+						</div>
+					</div>
+					-->
+					<div class="has-text-left">
+						<p class="help no-select">
+							This is a demo of the capabilities of <a href="https://github.com/anthonywww/gpt4all-box" target="_blank">gpt4all-box</a>. Powered by <a href="https://github.com/nomic-ai/gpt4all" target="_blank">gpt4all</a>.
+						</p>
+						<p class="help no-select">
+							<span><i class="fa fa-cube"></i>&nbsp;gpt4all-box 1.0.0</span>
+						</p>
+					</div>
+				</div>
+				<div class="column is-9">
+					<div class="box">
+						<h3 class="title is-3">Chat <i class="fa fa-comments"></i></h3>
+						<div class="content">
+							<div id="chat"></div>
+							<div id="chat-statusbar">
+								<div class="columns">
+									<div class="column">
+										<div class="has-text-left">
+											<p id="chat-statusbar-status">
+												<span>
+													<i class="fa fa-cog fa-spin fa-fw"></i>
+													Awaiting response from agent ...
+												</span>
+											</p>
+										</div>
+									</div>
+									<div class="column">
+										<div class="has-text-right">
+											<p id="chat-statusbar-ping">
+												<span><i class="fa fa-exchange"></i>&nbsp;30ms</span>
+											</p>
+										</div>
+									</div>
+								</div>
+							</div>
+						</div>
+						<div class="field">
+							<div class="control is-expanded">
+								<textarea id="prompt" class="textarea is-info" placeholder="Enter your prompt here, or type '/help' for a list of commands."></textarea>
+							</div>
+						</div>
+						<div class="has-text-right is-right">
+							<button id="send" class="button is-info" disabled><i class="fa fa-chevron-right"></i>&nbsp;Send</button>
+							<br>
+							<p class="help no-select">Save chat transcript as <a id="save-as-plain">Plain Text</a>, <a id="save-as-csv">CSV</a> or <a id="save-as-json">JSON</a>.</p>
+						</div>
+					</div>
+				</section>
+			</div>
+		</div>
+	</body>
+	<script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.7.0/jquery.min.js" integrity="sha512-3gJwYpMe3QewGELv8k/BX9vcqhryRdzRMxVfq6ngyWXwo03GFEzjsUm8Q7RZcHPHksttq7/GFoxjCVUjkjvPdw==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+	<script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/prism.min.js" integrity="sha512-7Z9J3l1+EYfeaPKcGXu3MS/7T+w19WtKQY/n+xzmw4hZhJ9tyYmcUS+4QqAlzhicE5LAfMQSF3iFTK9bQdTxXg==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+	<script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/plugins/autoloader/prism-autoloader.min.js" integrity="sha512-SkmBfuA2hqjzEVpmnMt/LINrjop3GKWqsuLSSB3e7iBmYK7JuWw4ldmmxwD9mdm2IRTTi0OxSAfEGvgEi0i2Kw==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+	<script src="https://cdnjs.cloudflare.com/ajax/libs/marked/5.0.2/marked.min.js" integrity="sha512-pR2pRxcTyeDj6VIOCyr++qKaMVGOlr4uI3XK7jdsLJipnyts+Bo9jtEaL0p+iVcG5pCx84f045DAZH5OrHM9Sw==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+	<!--
+	The following are either outdated or not available on CloudFlare's cdnjs...
+	Must use unpkg instead :(
+	-->
+	<script src="https://unpkg.com/reconnecting-websocket@4.4.0/dist/reconnecting-websocket-iife.min.js" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+	<script src="https://unpkg.com/bulma-slider@2.0.5/dist/js/bulma-slider.min.js" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+	<script src="./client.js" defer></script>
+	<script src="./ui.js" defer></script>
+</html>

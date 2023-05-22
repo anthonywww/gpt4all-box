@@ -1,0 +1,4 @@
+StrEnum
+websocket-server
+requests
+gpt4all
