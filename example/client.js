@@ -145,7 +145,7 @@
 			}
 
 			this._url = url;
-			this._ws = new this._settings.websocket(url, null, ...wsParams);
+			this._ws = new this._settings.websocket(url, [], ...wsParams);
 			this._ws.log = (...x) => console.log("%c[GatewaySocket]%c", "color:#A199FF;font-weight:bold", null, ...x);
 			
 			this._ws.log(`Connecting to ${this._url} ...`);
