@@ -98,5 +98,5 @@ Functions prefixed with `*` are planned or in development and may not work or ev
 | `connect`       |                                              | Connection has been opened successfully.                |
 | `disconnect`    |                                              | Connection is closed.                                   |
 | `system`        | type, message                                | System message from the server.                         |
-| `session`       | type, error, *sessionId *status, *settings  | Session event.                                          |
+| `session`       | type, error, *sessionId *status, *settings   | Session event.                                          |
 | `chat`          | type, sender, message, bot, error            | Chat message event.                                     |

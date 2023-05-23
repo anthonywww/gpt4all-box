@@ -2,6 +2,7 @@
 
 Gpt4All Q/A prompt session service-in-a-box. (for internal-use only, not meant for public servers, yet...)
 
+![Screenshot of the gpt4all-box client web user interface](./example/ui_screenshot.png)
 
 ### Usage
 
@@ -10,7 +11,9 @@ First build the Docker image:
 ./docker-build.sh
 ```
 
-Next run the image as a container:
+Next run the image as a container, see examples below.
+
+You can open the `examples/ui.html` on your local web browser to access the client chat UI.
 
 #### Development
 
