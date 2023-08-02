@@ -1,4 +1,4 @@
 bin/
 src/__pycache__/
 *.pyc
-
+models/*
