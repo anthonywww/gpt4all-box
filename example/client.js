@@ -1,5 +1,5 @@
 'use strict';
-// gpt4all-box Client Library Version 1.0.0
+// gpt4all-box Client Library Version 1.1.0
 
 (function (global, factory) {
 	if (typeof define === 'function' && define.amd) {
@@ -13,7 +13,7 @@
 
 	const NAME = "gpt4all-box";
 	const SHORT_NAME = "g4ab";
-	const VERSION = {major:1, minor:0, patch:0};
+	const VERSION = {major:1, minor:1, patch:0};
 	const PING_INTERVAL = 1000;
 	const WATCHDOG_INTERVAL = 1000 * 10;
 
@@ -67,7 +67,6 @@
 				"chat": []
 			};
 			this._sessions = [];
-			this._session = null;
 			this._lastPingMilliseconds = 0;
 			this._cids = [];
 		}
@@ -79,22 +78,25 @@
 			return this._ws.readyState == this._ws.OPEN;
 		}
 
-		isSessionReady() {
-			if (!this._session) {
-				return false;
+		getSessions() {
+			var sessions = [];
+			for (var s in this._sessions) {
+				if (!s) {
+					continue;
+				}
+				if (typeof(s) == "object") {
+					sessions.append(s);
+				}
 			}
-			return typeof(this._session) == "object";
+			return sessions;
 		}
 
-		getSessionId() {
-			if (!this.isSessionReady()) {
-				return null;
+		getSessions() {
+			var sessionIds = [];
+			for (var s in this.getSessions()) {
+				sessionIds.append(s.id);
 			}
-			return this._session.id;
-		}
-
-		getSessionIds() {
-			return null;
+			return sessionIds;
 		}
 
 		/**
@@ -232,10 +234,18 @@
 					}
 				} else if (data.msg == Packet.SYSTEM) {
 					const type = data.content.type;
-					const message = atob(data.content.data);
-					for (var i in this._eventListeners["system"]) {
-						this._eventListeners["system"][i](type, message);
+
+					if (type == "models") {
+						this._models = data.content.data;
+					} else if (type == "message") {
+						const message = atob(data.content.data);
+						for (var i in this._eventListeners["system"]) {
+							this._eventListeners["system"][i](type, message);
+						}
+					} else {
+						this._log("error", `[network] invalid system message type receieved: ${type}`);
 					}
+
 				}
 
 
@@ -247,17 +257,6 @@
 				this._log("error", "attempted to disconnect when not connected")
 				return;
 			}
-
-			// We might wanna hang on to the session ...
-			/*
-			if (this._session) {
-				this._send(Packet.SESSION, {
-					"request": "destroy",
-					"session_id": this._session.id
-				});
-			}
-			*/
-
 			this._ws.close();
 		}
 
@@ -266,6 +265,31 @@
 				return 0;
 			}
 			return this._lastPingMilliseconds;
+		}
+
+		getModels(callback) {
+			if (!this.isConnected()) {
+				return 0;
+			}
+			this._send(Packet.SYSTEM, {
+				"request": "models"
+			}, ((response) => {
+				const msg = response.msg;
+				const contextId = response.cid;
+				const content = response.content;
+				if (content.success) {
+					this._models = content;
+				}
+				for (var i in this._eventListeners["system"]) {
+					var type = "models";
+					var error = content["error"];
+					var models = content["models"];
+					this._eventListeners["system"][i](type, error, models);
+				}
+				if (typeof(callback) == "function") {
+					callback(content);
+				}
+			}).bind(this));
 		}
 
 		sessionCreate(settings, callback) {
@@ -281,11 +305,11 @@
 				const contextId = response.cid;
 				const content = response.content;
 				if (content.success) {
-					this._session = {
+					var session = {
 						"id": content["session_id"],
 						"created": new Date().getTime() / 1000
 					};
-					this._sessions.push(this._session);
+					this._sessions.push(session);
 				}
 				for (var i in this._eventListeners["session"]) {
 					var type = "create";
@@ -312,11 +336,21 @@
 				const contextId = response.cid;
 				const content = response.content;
 				if (content.success) {
-					this._session = {
-						"id": sessionId,
-						"created": new Date().getTime() / 1000
-					};
-					this._sessions.push(this._session);
+
+					var already_exists = false;
+					for (sess in this._sessions) {
+						if (sess.id == sessionId) {
+							already_exists = true;
+						}
+					}
+
+					if (!already_exists) {
+						var session = {
+							"id": sessionId,
+							"created": new Date().getTime() / 1000
+						};
+						this._sessions.push(session);
+					}
 				}
 				for (var i in this._eventListeners["session"]) {
 					var type = "resume";
@@ -342,7 +376,9 @@
 				const contextId = response.cid;
 				const content = response.content;
 				if (content.success) {
-					this._session = null;
+					for (var sess in this._sessions) {
+						this._sessions.remove(sess);
+					}
 				}
 				for (var i in this._eventListeners["session"]) {
 					var type = "destroy";
@@ -380,13 +416,14 @@
 			}).bind(this));
 		}
 
-		sendChat(message) {
+		sendChat(sessionId, message) {
 			if (!this.isConnected()) {
 				this._log("error", "attempted to get the status about a session when not connected")
 				return;
 			}
 			this._send(Packet.CHAT, {
 				"type": "text",
+				"session_id": sessionId,
 				"data": btoa(message)
 			}, ((response) => {
 				const msg = response.msg;
@@ -398,7 +435,7 @@
 				const bot = content.bot;
 				const error = content.error;
 				for (var i in this._eventListeners["chat"]) {
-					this._eventListeners["chat"][i](type, sender, message, bot, error);
+					this._eventListeners["chat"][i](type, error, sender, message, bot);
 				}
 				if (typeof(callback) == "function") {
 					callback(content);

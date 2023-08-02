@@ -10,10 +10,11 @@ logger = logging.getLogger(__name__)
 
 class Session:
 
-    def __init__(self, max_idle_session_duration:int, model_threads:int, model_settings:dict=None):
+    def __init__(self, max_idle_session_duration:int, model_path:str, model_threads:int, model_settings:dict=None):
         # TODO: possibly store the ip addr of who created this session, that way it can be rate-limited by ip addr
 
         self.max_idle_session_duration = max_idle_session_duration
+        self.model_path = model_path
         self.model_threads = model_threads
 
         """
@@ -57,23 +58,30 @@ class Session:
         
         self.id = uuid.uuid4().hex
         logger.debug(f"Creating new session id {self.id} ...")
-        self.gpt = Gpt(self.model_threads, self.model_settings)
+        self.gpt = Gpt(self.model_path, self.model_threads, self.model_settings)
         self.last_used = int(time.time())
         logger.debug(f"Session id {self.id} created! Valid for {max_idle_session_duration} seconds")
 
     def get_id(self):
         return self.id
 
+    def reload(self):
+        self.last_used = int(time.time())
+
     def get_gpt(self):
         if self.has_expired():
             return None
-        self.last_used = int(time.time())
+        self.reload()
         return self.gpt
 
-    def has_expired(self):
-        current = int(time.time())
+    def get_expiration(self):
+        current_time = int(time.time())
+        return self.last_used + self.max_idle_session_duration
 
-        if current - self.last_used > self.max_idle_session_duration:
+    def has_expired(self):
+        current_time = int(time.time())
+
+        if current_time > self.get_expiration():
             self.destroy()
             return True
 

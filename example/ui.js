@@ -1,23 +1,21 @@
 
-const ELEMENT = {
-	"chat": "#chat"
+const ELEMENTS = {
+	"chat": "#chat",
+	"logs": "#logs"
 };
-
-const SESSION_SETTINGS = {
-	"model": "ggml-gpt4all-l13b-snoozy.bin", // most stable
-	//"model": "ggml-gpt4all-j-v1.3-groovy.bin", // weird behavior, random text response
-	//"model": "ggml-mpt-7b-chat.bin",
-	"temperature": 0.8
-}
 
 const WEBSOCKET_PARAMS = {
 	connectionTimeout: 3000,
 	startClosed: false
 }
 
+const COOKIE_NAME = "gpt4ab-state";
+
+var currentSession = null;
 var sessions = [];
 var statsInterval = null;
 var awaitingResponse = false;
+var cookieInitialized = null;
 
 // Note: The chat log is from a trusted source (i.e. the user and the gpt4all-box server, which the client.js scrubs anyway)
 function stripHtml(html) {
@@ -92,22 +90,22 @@ function timeDifference(current, previous) {
 	var elapsed = current - previous;
 
 	if (elapsed < msPerMinute) {
-		return Math.round(elapsed/1000) + ' seconds ago';
+		return Math.round(elapsed / 1000) + ' seconds ago';
 	} else if (elapsed < msPerHour) {
-		return Math.round(elapsed/msPerMinute) + ' minutes ago';
-	} else if (elapsed < msPerDay ) {
-		return Math.round(elapsed/msPerHour ) + ' hours ago';
+		return Math.round(elapsed / msPerMinute) + ' minutes ago';
+	} else if (elapsed < msPerDay) {
+		return Math.round(elapsed / msPerHour) + ' hours ago';
 	} else if (elapsed < msPerMonth) {
-		return 'approximately ' + Math.round(elapsed/msPerDay) + ' days ago';
+		return 'approximately ' + Math.round(elapsed / msPerDay) + ' days ago';
 	} else if (elapsed < msPerYear) {
-		return 'approximately ' + Math.round(elapsed/msPerMonth) + ' months ago';
+		return 'approximately ' + Math.round(elapsed / msPerMonth) + ' months ago';
 	} else {
-		return 'approximately ' + Math.round(elapsed/msPerYear ) + ' years ago';
+		return 'approximately ' + Math.round(elapsed / msPerYear) + ' years ago';
 	}
 }
 
 function updateTimestamps() {
-	$("time.timestamp").each(function() {
+	$("time.timestamp").each(function () {
 		let previous_string = parseInt(($(this).attr("datetime")));
 		let previous = new Date(previous_string * 1000);
 		let current = new Date();
@@ -116,29 +114,26 @@ function updateTimestamps() {
 	});
 }
 
-function addToChat(sender, display_name, isBot, message) {
+function addToLog(sender, message) {
 	const ampm = true;
 	const date = new Date();
 	const hour = (date.getHours() < 10 ? "0" + date.getHours() : date.getHours());
 	const minute = (date.getMinutes() < 10 ? "0" + date.getMinutes() : date.getMinutes());
 	const second = (date.getSeconds() < 10 ? "0" + date.getSeconds() : date.getSeconds());
-	const dateFormatted = (ampm ? `${hour > 12 ? hour - 11 : hour}:${minute}:${second} ${hour >= 12 ? "PM" : "AM"}` : `${hour}:${minute}:${second}`);
-	const unixTime = Math.floor(date.getTime() / 1000);
+	const date_formatted = (ampm ? `${hour > 12 ? hour - 11 : hour}:${minute}:${second} ${hour >= 12 ? "PM" : "AM"}` : `${hour}:${minute}:${second}`);
+	const unix_time = Math.floor(date.getTime() / 1000);
+	const display_name = sender.charAt(0).toUpperCase() + sender.slice(1);
 	var css_class = "";
-	
+
 	if (sender == "system") {
 		css_class = "chat-message-system";
 	} else if (sender == "client") {
 		css_class = "chat-message-client";
-	} else if (sender == "user") {
-		message = marked.parse(message);
 	}
-	if (isBot) {
-		css_class = "chat-message-agent";
-	}
-	$(ELEMENT.chat).append(`
+
+	$(ELEMENTS.logs).append(`
 	<div class="chat-message ${css_class}">
-		<time class="timestamp" datetime="${unixTime}">${dateFormatted}</time>
+		<time class="timestamp" datetime="${unix_time}">${date_formatted}</time>
 		<span class="sender">${display_name}</span>
 		<div class="content">
 			${message}
@@ -146,9 +141,17 @@ function addToChat(sender, display_name, isBot, message) {
 	</div>
 	`);
 
-	$(ELEMENT.chat).animate({scrollTop: $(ELEMENT.chat).height()}, 1000);
+	$(ELEMENTS.logs).animate({ scrollTop: $(ELEMENTS.chat).height() }, 1000);
+}
 
-	// Now add it to the current sessions' chat log
+function addToChat(sender, display_name, isBot, message) {
+	const ampm = true;
+	const date = new Date();
+	const hour = (date.getHours() < 10 ? "0" + date.getHours() : date.getHours());
+	const minute = (date.getMinutes() < 10 ? "0" + date.getMinutes() : date.getMinutes());
+	const second = (date.getSeconds() < 10 ? "0" + date.getSeconds() : date.getSeconds());
+	const date_formatted = (ampm ? `${hour > 12 ? hour - 11 : hour}:${minute}:${second} ${hour >= 12 ? "PM" : "AM"}` : `${hour}:${minute}:${second}`);
+	const unix_time = Math.floor(date.getTime() / 1000);
 
 	if (client.isSessionReady()) {
 		var entry = {
@@ -159,7 +162,7 @@ function addToChat(sender, display_name, isBot, message) {
 		};
 		var chat_log = null;
 		for (i in sessions) {
-			if (sessions[i].session.id == client.getSessionId()) {
+			if (sessions[i].id == client.getSessionId()) {
 				chat_log = sessions[i].chat_log;
 				break;
 			}
@@ -168,6 +171,34 @@ function addToChat(sender, display_name, isBot, message) {
 			chat_log.push(entry);
 		}
 	}
+
+
+	var css_class = "";
+
+	if (sender == "system") {
+		css_class = "chat-message-system";
+		addToLog(sender, message);
+	} else if (sender == "client") {
+		css_class = "chat-message-client";
+		addToLog(sender, message);
+	} else if (sender == "user") {
+		message = marked.parse(message);
+	}
+	if (isBot) {
+		css_class = "chat-message-agent";
+	}
+	
+	$(ELEMENTS.chat).append(`
+	<div class="chat-message ${css_class}">
+		<time class="timestamp" datetime="${unix_time}">${date_formatted}</time>
+		<span class="sender">${display_name}</span>
+		<div class="content">
+			${message}
+		</div>
+	</div>
+	`);
+
+	$(ELEMENTS.chat).animate({ scrollTop: $(ELEMENTS.chat).height() }, 1000);
 }
 
 function updateStats() {
@@ -178,8 +209,8 @@ function updateStats() {
 		var sess = null;
 
 		for (i in sessions) {
-			if (sessions[i].session.id == client.getSessionId()) {
-				sess = sessions[i].session;
+			if (sessions[i].id == client.getSessionId()) {
+				sess = sessions[i];
 				break;
 			}
 		}
@@ -201,7 +232,7 @@ function updateStats() {
 			`);
 		}
 	}
-	
+
 	var ping = client.getPing();
 
 	if (ping > 500) {
@@ -209,43 +240,36 @@ function updateStats() {
 	} else {
 		ping = `${ping}ms`;
 	}
-	
-	$("#chat-statusbar-ping").append(`<i class="fa fa-exchange" title="Average RTT ping in milliseconds."></i>&nbsp;${ping}`);
+
+	//$("#chat-statusbar-ping").append(`<i class="fa fa-exchange" title="Average RTT ping in milliseconds."></i>&nbsp;${ping}`);
+	$("#avg-ping").html(ping);
 }
 
 function onConnect() {
 	$("#server").prop("disabled", true);
-	//$("#model").prop("disabled", true);
-	//$("#temperature").prop("disabled", true);
+	$("#model").prop("disabled", false);
+	$("#temperature").prop("disabled", false);
 
 	$("#connect").html("<i class='fa fa-plug'></i>&nbsp;Disonnect");
 	$("#connect").addClass("is-danger");
 	$("#connect").removeClass("is-success");
 	$("#connect").removeClass("is-loading");
-	
+
+	$("#kill").prop("disabled", false);
+	$("#send").prop("disabled", false);
+
 	$("#chat-statusbar").addClass("chat-statusbar-normal");
 	$("#chat-statusbar-status").html("<i class='fa fa-check'></i>&nbsp;Connected!");
 	setTimeout(() => {
 		$("#chat-statusbar-status").html("");
 	}, 3000);
-	$("#chat-statusbar-ping").html(`<i class='fa fa-exchange'></i>&nbsp;${client.getPing()}ms`);
+	
+	//$("#chat-statusbar-ping").html(`<i class='fa fa-exchange'></i>&nbsp;${client.getPing()}ms`);
 
 	statsInterval = setInterval(updateStats, 3000);
+	
+	
 	// TODO: restore sessions from cookie?
-
-
-	// Deal with sessions
-	if (sessions.length == 0) {
-		// Create a new session
-		addToChat("client", "Client", false, `<i class="fa fa-info-circle" title="This message was sent by the client."></i>&nbsp;No session found, requesting a new session ...`);
-		client.sessionCreate(SESSION_SETTINGS);
-	} else {
-		// Resume a session
-		var sessionId = sessions[0].session.id;
-		addToChat("client", "Client", false, `<i class="fa fa-info-circle" title="This message was sent by the client."></i>&nbsp;Attempting to resume session (id:<code>${sessionId}</code>) ...`);
-		client.sessionResume(sessionId);
-	}
-
 }
 
 function onDisconnect() {
@@ -253,6 +277,8 @@ function onDisconnect() {
 	$("#connect").addClass("is-success");
 	$("#connect").removeClass("is-danger");
 	$("#connect").removeClass("is-loading");
+	$("#model").prop("disabled", true);
+	$("#temperature").prop("disabled", true);
 
 	$("#connect").html("<i class='fa fa-plug'></i>&nbsp;Connect");
 	$("#server").prop("disabled", false);
@@ -280,25 +306,30 @@ function onSessionState(type, error, sessionId, status, settings) {
 
 	if (type == "create") {
 		const sess = {
-			"session": {
-				"id": sessionId,
-				"status": "initializing",
-				"created": Math.floor(new Date().getTime() / 1000),
-				"settings": {}
-			},
+			"id": sessionId,
+			"status": "initializing",
+			"created": Math.floor(new Date().getTime() / 1000),
+			"settings": {},
 			"chat_log": []
 		};
 		sessions.push(sess);
-		//$("#kill").prop("disabled", false);
+
+		$("#session-tabs").children().append(`
+			<li>
+				<a class="session-tabs-link" data-session="${sessionId}">
+					<span class="icon is-small"><i class="fa fa-tag" aria-hidden="true"></i></span>
+					<span>${sessionId.substr(0, 6)}</span>
+				</a>
+			</li>
+		`);
+
 		addToChat("client", "Client", false, `<i class="fa fa-info-circle" title="This message was sent by the client."></i>&nbsp;Session created. (id:<code>${sessionId}</code>)`);
 	} else if (type == "resume") {
-		//$("#kill").prop("disabled", false);
 		addToChat("client", "Client", false, `<i class="fa fa-info-circle" title="This message was sent by the client."></i>&nbsp;Session resumed. (id:<code>${client.getSessionId()}</code>)`);
 	} else if (type == "destroy") {
-		$("#kill").prop("disabled", true);
 		$("#send").prop("disabled", true);
 	} else if (type == "status") {
-		
+
 		if (status == "idle") {
 			$("#send").prop("disabled", false);
 		} else {
@@ -307,8 +338,8 @@ function onSessionState(type, error, sessionId, status, settings) {
 
 		if (client.isSessionReady()) {
 			for (i in sessions) {
-				if (sessions[i].session.id == client.getSessionId()) {
-					var sess = sessions[i].session;
+				var sess = sessions[i];
+				if (sess.id == client.getSessionId()) {
 					sess.status = status;
 					break;
 				}
@@ -319,7 +350,7 @@ function onSessionState(type, error, sessionId, status, settings) {
 
 }
 
-function onChat(type, sender, message, bot, error) {
+function onChat(type, error, sender, message, bot) {
 
 	if (bot == true && awaitingResponse) {
 		awaitingResponse = false;
@@ -334,6 +365,55 @@ function onChat(type, sender, message, bot, error) {
 
 
 	addToChat(sender, name, bot, message);
+}
+
+function updateSessionToCookie() {
+	var data = getCookie(COOKIE_NAME);
+	if (data == null) {
+		setCookie(COOKIE_NAME, {
+			"initialized": cookieInitialized || new Date().getTime() / 1000,
+			"sessions": sessions
+		});
+	}
+}
+
+function getSessionsFromCookie() {
+	var data = getCookie(COOKIE_NAME);
+	if (data == null) {
+		setSessionToCookie();
+	}
+	return data["sessions"];
+}
+
+function setCookie(name, value, days) {
+	var expires = "";
+	if (days) {
+		var date = new Date();
+		date.setTime(date.getTime() + (days * 24 * 60 * 60 * 1000));
+		expires = "; expires=" + date.toUTCString();
+	}
+	document.cookie = name + "=" + (value || "") + expires + "; path=/";
+}
+
+function getCookie(name) {
+	var nameEQ = name + "=";
+	var ca = document.cookie.split(';');
+	for (var i = 0; i < ca.length; i++) {
+		var c = ca[i];
+
+		while (c.charAt(0) == ' ') {
+			c = c.substring(1, c.length);
+		}
+
+		if (c.indexOf(nameEQ) == 0) {
+			return c.substring(nameEQ.length, c.length);
+		}
+	}
+	return null;
+}
+
+function destroyCookie(name) {
+	document.cookie = name + '=; Path=/; Expires=Thu, 01 Jan 1970 00:00:01 GMT;';
 }
 
 client = new Gpt4AllBox({
@@ -369,11 +449,50 @@ window.addEventListener("load", () => {
 		}
 	});
 
+	$("#new-session").click(() => {
+		//addToChat("client", "Client", false, `<i class="fa fa-info-circle" title="This message was sent by the client."></i>&nbsp;No session found, requesting a new session ...`);
+		//addToChat("client", "Client", false, `<i class="fa fa-info-circle" title="This message was sent by the client."></i>&nbsp;Attempting to resume session (id:<code>${sessionId}</code>) ...`);
+
+		// Deal with sessions
+		if (sessions.length == 0) {
+			// Create a new session
+			
+			addToChat("client", "Client", false, `<i class="fa fa-info-circle" title="This message was sent by the client."></i>&nbsp;No session found, requesting a new session ...`);
+			
+			var session_settings = {
+				"model": $("#model").val(),
+				"temperature": $("#temperature").val()
+			};
+
+			client.sessionCreate(session_settings);
+		} else {
+			// Resume a session
+			//client.sessionResume(sessionId);
+		}
+	});
+
+	$(".session-tabs-link").click(() => {
+		var session_id = $(this).attr("data-session");
+
+		// This is the "logs" tab
+		if (session_id == null) {
+			$("#session-tab").hide();
+			$("#logs-tab").show();
+		} else {
+			$("#session-tab").show();
+			$("#logs-tab").hide();
+		}
+
+		$("#chat").empty();
+		for (var msg in sessions)
+
+	});
+
 	$("#send").click(() => {
 		if (client.isConnected() && client.isSessionReady()) {
 			var msg = $("#prompt").val();
 			$("#prompt").val("");
-			
+
 			addToChat("user", "You", false, msg);
 			client.sendChat(msg);
 
@@ -419,7 +538,7 @@ window.addEventListener("load", () => {
 
 		var a = document.createElement('a');
 		var date = new Date();
-		var filename = `chat-log-${Math.floor(date.getTime()/1000)}.txt`;
+		var filename = `chat-log-${Math.floor(date.getTime() / 1000)}.txt`;
 		var blob = new Blob([data], { type: 'text/plain' });
 		a.download = filename;
 		a.href = window.URL.createObjectURL(blob);
@@ -457,7 +576,7 @@ window.addEventListener("load", () => {
 
 		var a = document.createElement('a');
 		var date = new Date();
-		var filename = `chat-log-${Math.floor(date.getTime()/1000)}.csv`;
+		var filename = `chat-log-${Math.floor(date.getTime() / 1000)}.csv`;
 		var blob = new Blob([data], { type: 'text/csv' });
 		a.download = filename;
 		a.href = window.URL.createObjectURL(blob);
@@ -482,7 +601,7 @@ window.addEventListener("load", () => {
 		var data = JSON.stringify(chatLog);
 		var a = document.createElement('a');
 		var date = new Date();
-		var filename = `chat-log-${Math.floor(date.getTime()/1000)}.json`;
+		var filename = `chat-log-${Math.floor(date.getTime() / 1000)}.json`;
 		var blob = new Blob([data], { type: 'application/json' });
 		a.download = filename;
 		a.href = window.URL.createObjectURL(blob);

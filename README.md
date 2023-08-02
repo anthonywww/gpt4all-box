@@ -4,6 +4,8 @@ Gpt4All Q/A prompt session service-in-a-box. (for internal-use only, not meant f
 
 ![Screenshot of the gpt4all-box client web user interface](./example/ui_screenshot.png)
 
+Want `wss://` (SSL/TLS) support for the agent? Use a TLS terminating nginx reverse proxy.
+
 ### Usage
 
 First build the Docker image:
@@ -14,6 +16,8 @@ First build the Docker image:
 Next run the image as a container, see examples below.
 
 You can open the `examples/ui.html` on your local web browser to access the client chat UI.
+
+
 
 #### Development
 
@@ -46,11 +50,11 @@ docker run --name gpt4all-box \
 
 ### Environment Variables
 
-| Name                       | Default           | Description                                                                            |
-|----------------------------|-------------------|----------------------------------------------------------------------------------------|
-| MODEL_THREADS              | 4                 | Number of CPU threads for the LLM agent to use.                                        |
-| SYSTEM_MESSAGE             |                   | Set an announcement message to send to clients on connection.                          |
-| HEARTBEAT_INTERVAL         | 5000              | How often events are processed internally, such as session pruning.                    |
-| MAX_IDLE_SESSION_DURATION  | 180000            | Execute stale session purge after this period.                                         |
-| SSL_KEY                    |                   | Path to SSL key file in PEM format.                                                    |
-| SSL_CERT                   |                   | Path to SSL cert file in PEM format.                                                   |
+| Name                       | Default                         | Description                                                                            |
+|----------------------------|---------------------------------|----------------------------------------------------------------------------------------|
+| MODEL_PATH                 | models/                         | Directory path of where to save the models.                                            |
+| MODEL_THREADS              | 4                               | Number of CPU threads for the LLM agent to use.                                        |
+| MODEL_DOWNLOADS            | https://gpt4all.io/models       | Where to download the model binaries from.                                             |
+| SYSTEM_MESSAGE             |                                 | Set an announcement message to send to clients on connection.                          |
+| HEARTBEAT_INTERVAL         | 5000                            | How often events are processed internally, such as session pruning.                    |
+| MAX_IDLE_SESSION_DURATION  | 180000                          | Execute stale session purge after this period.                                         |

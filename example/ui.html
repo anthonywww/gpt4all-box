@@ -29,19 +29,21 @@
 								<span class="icon is-small is-left">
 									<i class="fa fa-bolt"></i>
 								</span>
+								<p class="help is-pulled-right">
+									<i class="fa fa-exchange"></i>
+									<span id="avg-ping" title="Average RTT ping in milliseconds.">0ms</span>
+								</p>
 								<p class="help">The gpt4all-box WebSocket server to connect to.</p>
 							</div>
 						</div>
 
 						<div class="buttons">
-							<!-- class: is-loading -->
 							<button id="connect" class="button is-success"><i class="fa fa-plug"></i>&nbsp;Connect</button>
 						</div>
 					</div>
-
+					
 					<div class="box">
-						<h3 class="title is-3">Session Control</h3>
-
+						<h3 class="title is-3">New Session</h3>
 						<div class="field">
 							<label class="label">Model <i class="fa fa-sitemap"></i></label>
 							<div class="control has-icons-left">
@@ -49,18 +51,6 @@
 									<select id="model" disabled>
 										<option value="ggml-gpt4all-j-v1.3-groovy.bin" title="Current best commercially licensable model based on GPT-J and trained by Nomic AI on the latest curated GPT4All dataset.">ggml-gpt4all-j-v1.3-groovy.bin</option>
 										<option value="ggml-gpt4all-l13b-snoozy.bin" title="Current best non-commercially licensable model based on Llama 13b and trained by Nomic AI on the latest curated GPT4All dataset." selected>ggml-gpt4all-l13b-snoozy.bin (Default)</option>
-										<!-- others -->
-										<option value="ggml-mpt-7b-chat.bin" title="Current best non-commercially licensable chat model based on MPT and trained by Mosaic ML.">ggml-mpt-7b-chat.bin</option>
-										<option value="ggml-gpt4all-j-v1.2-jazzy.bin" title="A commercially licensable model based on GPT-J and trained by Nomic AI on the v2 GPT4All dataset.">ggml-gpt4all-j-v1.2-jazzy.bin</option>
-										<option value="ggml-gpt4all-j-v1.1-breezy.bin" title="A commercially licensable model based on GPT-J and trained by Nomic AI on the v1 GPT4All dataset.">ggml-gpt4all-j-v1.1-breezy.bin</option>
-										<option value="ggml-gpt4all-j.bin" title="A commercially licensable model based on GPT-J and trained by Nomic AI on the v0 GPT4All dataset.">ggml-gpt4all-j.bin</option>
-										<option value="ggml-vicuna-7b-1.1-q4_2.bin" title="A non-commercially licensable model based on Llama 7b and trained by teams from UC Berkeley, CMU, Stanford, MBZUAI, and UC San Diego.">ggml-vicuna-7b-1.1-q4_2.bin</option>
-										<option value="ggml-vicuna-13b-1.1-q4_2.bin" title="A non-commercially licensable model based on Llama 13b and trained by teams from UC Berkeley, CMU, Stanford, MBZUAI, and UC San Diego.">ggml-wizardLM-7B.q4_2.bin</option>
-										<option value="ggml-wizardLM-7B.q4_2.bin" title="A non-commercially licensable model based on Llama 7b and trained by Microsoft and Peking University.">ggml-wizardLM-7B.q4_2.bin</option>
-										<option value="ggml-stable-vicuna-13B.q4_2.bin" title="A non-commercially licensable model based on Llama 13b and RLHF trained by Stable AI.">ggml-stable-vicuna-13B.q4_2.bin</option>
-										<option value="ggml-mpt-7b-base.bin" title="A commercially licensable model base pre-trained by Mosaic ML.">ggml-mpt-7b-base.bin</option>
-										<option value="ggml-nous-gpt4-vicuna-13b.bin" title="A non-commercially licensable model based on Vicuna 13b, fine-tuned on ~180,000 instructions, trained by Nous Research.">ggml-nous-gpt4-vicuna-13b.bin</option>
-										<option value="ggml-mpt-7b-instruct.bin" title="A commericially licensable instruct model based on MPT and trained by Mosaic ML.">ggml-mpt-7b-instruct.bin</option>
 									</select>
 								</div>
 								<div class="icon is-small is-left">
@@ -79,24 +69,8 @@
 							</div>
 						</div>
 						
-						<div class="field">
-							<label class="label">Session <i class="fa fa-tag"></i></label>
-							<div class="control has-icons-left">
-								<div class="select is-fullwidth">
-									<select id="session" disabled>
-										<option value="" title="Start a new session." selected>(None)</option>
-									</select>
-								</div>
-								<div class="icon is-small is-left">
-									<i class="fa fa-file"></i>
-									</div>
-								<p class="help">Use a specific session.</p>
-							</div>
-						</div>
-						
 						<div class="buttons">
 							<button id="new-session" class="button is-success" title="Creates a new session based on the parameters specified." disabled><i class="fa fa-plus"></i>&nbsp;Create Session</button>
-							<button id="kill" class="button is-warning" title="This can be used if the agent becomes unstable, or you want to start fresh." disabled><i class="fa fa-times"></i>&nbsp;Kill Session</button>
 						</div>
 					</div>
 
@@ -134,40 +108,66 @@
 				</div>
 				<div class="column is-9">
 					<div class="box">
-						<h3 class="title is-3">Chat <i class="fa fa-comments"></i></h3>
-						<div class="content">
-							<div id="chat"></div>
-							<div id="chat-statusbar">
-								<div class="columns">
-									<div class="column">
-										<div class="has-text-left">
-											<p id="chat-statusbar-status">
-												<span>
-													<i class="fa fa-cog fa-spin fa-fw"></i>
-													Awaiting response from agent ...
-												</span>
-											</p>
+						<div class="tabs is-medium">
+							<ul id="session-tabs">
+								<li class="is-active">
+									<a class="session-tabs-link">
+										<span class="icon is-small"><i class="fa fa-bars" aria-hidden="true"></i></span>
+										<span>Logs</span>
+									</a>
+								</li>
+							</ul>
+						</div>
+						<div id="logs-tab">
+							<h3 class="title is-3">Client Log</h3>
+							<div class="content">
+								<div id="logs" class="logs"></div>
+							</div>
+						</div>
+						<div id="session-tab" style="display: none;">
+							<h3 class="title is-3">Chat <i class="fa fa-comments"></i></h3>
+							<div class="content">
+								<div id="chat" class="logs"></div>
+								<div id="chat-statusbar">
+									<div class="columns">
+										<div class="column">
+											<div class="has-text-left">
+												<p id="chat-statusbar-status">
+													<span>
+														<i class="fa fa-cog fa-spin fa-fw"></i>
+														Awaiting response from agent ...
+													</span>
+												</p>
+											</div>
 										</div>
-									</div>
-									<div class="column">
-										<div class="has-text-right">
-											<p id="chat-statusbar-ping">
-												<span><i class="fa fa-exchange"></i>&nbsp;30ms</span>
-											</p>
+										<div class="column">
+											<div class="has-text-right">
+												<p id="chat-statusbar-ping">
+													<span><i class="fa fa-exchange"></i>&nbsp;30ms</span>
+												</p>
+											</div>
 										</div>
 									</div>
 								</div>
 							</div>
-						</div>
-						<div class="field">
-							<div class="control is-expanded">
-								<textarea id="prompt" class="textarea is-info" placeholder="Enter your prompt here, or type '/help' for a list of commands."></textarea>
+							
+							<div class="field">
+								<div class="control is-expanded">
+									<textarea id="prompt" class="textarea is-info" placeholder="Enter your prompt here, or type '/help' for a list of commands."></textarea>
+								</div>
 							</div>
-						</div>
-						<div class="has-text-right is-right">
-							<button id="send" class="button is-info" disabled><i class="fa fa-chevron-right"></i>&nbsp;Send</button>
-							<br>
-							<p class="help no-select">Save chat transcript as <a id="save-as-plain">Plain Text</a>, <a id="save-as-csv">CSV</a> or <a id="save-as-json">JSON</a>.</p>
+							
+							<div class="field">
+								<div class="control buttons has-text-right is-right">
+									<button id="kill" class="button is-warning" title="This can be used if the agent becomes unstable, or you want to start fresh." disabled><i class="fa fa-times"></i>&nbsp;Kill Session</button>
+									<button id="send" class="button is-info" disabled><i class="fa fa-chevron-right"></i>&nbsp;Send</button>
+								</div>
+							</div>
+							
+							<div class="has-text-right is-right">
+								<p class="help no-select">Save chat transcript as <a id="save-as-plain">Plain Text</a>, <a id="save-as-csv">CSV</a> or <a id="save-as-json">JSON</a>.</p>
+							</div>
+
 						</div>
 					</div>
 				</section>

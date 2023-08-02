@@ -4,30 +4,42 @@ import json
 import uuid
 import logging
 
-from packet import Packet
+import session as Session
+import packet as Packet
 
 logger = logging.getLogger(__name__)
 
 class Client:
 
-    def __init__(self, wsclient, session=None):
+    def __init__(self, wsclient):
         self.wsclient = wsclient
-        self.session = session
+        self.sessions = [] # These are just references to the original object, just as the one in g4ab.py
+        logger.debug(f"Client #{self.get_id()} ({self.get_address()}:{self.get_port()} initialized)")
 
-        session_string = ""
+    def add_session(self, session:Session):
+        logger.debug(f"Client #{self.get_id()} ({self.get_address()}:{self.get_port()}) bound to session id {session.get_id()}")
+        session.get_gpt() # Update session timestamp to prevent it from expiring
+        self.sessions.append(session)
 
-        if session != None:
-            session_string = f" initialized with session id {session.get_id()}"
+    def remove_session(self, session:Session):
+        logger.debug(f"Client #{self.get_id()} ({self.get_address()}:{self.get_port()}) unbound from session id {session.get_id()}")
+        self.sessions.remove(session)
 
-        logger.debug(f"Client #{self.get_id()} ({self.get_address()}:{self.get_port()}){session_string}")
+    def has_session_id(self, session_id:int):
+        return not self.get_session_by_id(session_id) == None
 
-    def set_session(self, session):
-        logger.debug(f"Client #{self.get_id()} ({self.get_address()}:{self.get_port()}) session id updated to {session.get_id()}")
-        self.session = session
-        session.get_gpt()
+    def get_sessions(self):
+        sessions = []
+        for sess in self.sessions:
+            if not sess.has_expired():
+                sessions.append(sess)
+        return sessions
 
-    def get_session(self):
-        return self.session
+    def get_session_by_id(self, session_id:str):
+        for sess in self.get_sessions():
+           if sess.get_id() == session_id:
+               return sess
+        return None
 
     def send(self, packet:Packet, content:dict=None, context_id:str=uuid.uuid4().hex):
         r = {

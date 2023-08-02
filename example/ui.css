@@ -20,7 +20,7 @@ html, body {
 	}
 }
 
-#chat {
+.logs {
 	display: block;
 	position: relative;
 	overflow: auto;
@@ -33,6 +33,18 @@ html, body {
 	border-top-left-radius: 3px;
 	border-top-right-radius: 3px;
 }
+
+#logs {
+	border-bottom: 1px solid rgba(0, 0, 0, 0.3);
+}
+
+#logs.logs .chat-message {
+	display: inline-block;
+	width: 100%;
+	padding: 0px;
+	border-left: 4px solid transparent;
+}
+
 #prompt {
 	overflow-x: scroll;
 	overflow-y: visible;
@@ -40,14 +52,14 @@ html, body {
 	min-height: 50px;
 	height: 100px;
 }
-#chat code {
+.logs code {
 	background-color: rgba(128, 128, 128, 0.3);
 	color: inherit !important;
 	margin: 0 3px;
 	padding: 1px;
 	border-radius: 2px;
 }
-#chat pre {
+.logs pre {
 	background-color: rgba(255, 255, 255, 0.5);
 	color: inherit !important;
 	margin: 8px;
@@ -56,22 +68,22 @@ html, body {
 	border-left: 4px solid rgba(0, 0, 0, 0.3);
 	border-radius: 4px;
 }
-#chat pre > code {
+.logs pre > code {
 	background-color: transparent;
 }
-#chat .chat-message {
+.logs .chat-message {
 	display: inline-block;
 	width: 100%;
 	padding: 4px;
 	border-left: 4px solid transparent;
 }
-#chat .chat-message:hover {
+.logs .chat-message:hover {
 	background-color: inherit;
 }
-#chat .chat-message .timestamp {
+.logs .chat-message .timestamp {
 	padding-left: 4px;
 }
-#chat .chat-message .sender {
+.logs .chat-message .sender {
 	display: inline-block;
 	font-weight: bold;
 	margin: 3px;
@@ -81,55 +93,55 @@ html, body {
 	border: 1px solid rgba(0, 0, 0, 0.5);
 	background-color: rgba(255, 255, 255, 0.4);
 }
-#chat .chat-message .content {
+.logs .chat-message .content {
 	display: inline;
 	word-wrap: break-word;
 }
-#chat .chat-message .content p {
+.logs .chat-message .content p {
 	display: inline;
 	word-wrap: break-word;
 }
 
-#chat .chat-message.chat-message-system {
+.logs .chat-message.chat-message-system {
 	background-color: rgba(var(--color-chat-system), 0.2);
 	border-left: 4px solid rgba(var(--color-chat-system), 0.9);
 }
-#chat .chat-message.chat-message-system:hover {
+.logs .chat-message.chat-message-system:hover {
 	background-color: rgba(var(--color-chat-system), 0.3);
 	border-left: 4px solid rgba(var(--color-chat-system), 0.9);
 }
-#chat .chat-message.chat-message-system .sender {
+.logs .chat-message.chat-message-system .sender {
 	border: 1px solid rgba(var(--color-chat-system), 0.9);
 	background-color: rgba(var(--color-chat-system), 0.3);
 }
 
 
-#chat .chat-message.chat-message-agent {
+.logs .chat-message.chat-message-agent {
 	background-color: rgba(var(--color-chat-agent), 0.2);
 	border-left: 4px solid rgba(var(--color-chat-agent), 0.9);
 }
-#chat .chat-message.chat-message-agent:hover {
+.logs .chat-message.chat-message-agent:hover {
 	background-color: rgba(var(--color-chat-agent), 0.3);
 	border-left: 4px solid rgba(var(--color-chat-agent), 0.9);
 }
 
 
-#chat .chat-message.chat-message-client {
+.logs .chat-message.chat-message-client {
 	background-color: rgba(var(--color-chat-client), 0.1);
 	border-left: 4px solid rgba(var(--color-chat-client), 0.3);
 }
-#chat .chat-message.chat-message-client .timestamp {
+.logs .chat-message.chat-message-client .timestamp {
 	/*opacity: 0;*/
 }
-#chat .chat-message.chat-message-client .sender {
+.logs .chat-message.chat-message-client .sender {
 	display: none;
 }
-#chat .chat-message.chat-message-client .content {
+.logs .chat-message.chat-message-client .content {
 	font-style: italic;
 }
 
 
-#chat .chat-message.chat-message-user {
+.logs .chat-message.chat-message-user {
 	/*
 	background-color: rgba(128, 128, 128, 0.3);
 	border-left: 4px solid rgba(128, 128, 128, 1.0);

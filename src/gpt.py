@@ -5,10 +5,12 @@ import platform
 import time
 import logging
 import threading
-from utils import *
 from packet import Packet
-from client import Client
+from gpt_status import GPTStatus
 from gpt4all import GPT4All
+from utils import *
+
+import client as Client
 
 logger = logging.getLogger(__name__)
 DEFAULT_NAME = "Alice"
@@ -20,15 +22,16 @@ def new_print(*args, **kwargs):
 
 class Gpt:
 
-    def __init__(self, thread_count:int, agent_settings:dict):
-        self.threads = thread_count
+    def __init__(self, model_path:str, thread_count:int, agent_settings:dict):
+        self.model_path = model_path
+        self.model_threads = thread_count
         self.settings = agent_settings
 
         if self.settings["name"] == None:
             self.settings["name"] = DEFAULT_NAME
 
-        thread = threading.Thread(target=self._init, daemon=True)
-        thread.start()
+        self.thread = threading.Thread(target=self._init, daemon=True)
+        self.thread.start()
 
         self.local_ip = self._get_local_ip()
         self.public_ip = self._get_public_ip()
@@ -41,33 +44,44 @@ class Gpt:
         return self.status
 
     def prompt(self, client:Client, context_id:str, input:str):
-        thread = threading.Thread(target=self._prompt, args=(client, context_id, input), daemon=True)
-        thread.start()
-
-    def _init(self):
-        self.status = "initializing"
-        model_type = None
-        if "model_type" in self.settings:
-            model_type = self.settings["model_type"]
-        
-        self.gpt4all = GPT4All(model_name=self.settings["model"], model_path=None, model_type=model_type)
-        self.gpt4all.model.set_thread_count(self.threads)
-        self.status = "idle"
-
-    def _prompt(self, client:Client, context_id:str, input:str):
-
-        if self.gpt4all == None:
+        if self.get_status() == GPTStatus.INITIALIZING or self.gpt4all == None:
             client.send(packet=Packet.CHAT, content={
                 "success": False,
-                "error": "model is not done initializing",
+                "error": "model is still initializing",
                 "sender": self.name,
                 "bot": True,
                 "type": "text",
                 "data": None
             })
             return
+        elif self.get_status() == GPTStatus.PROCESSING:
+            client.send(packet=Packet.CHAT, content={
+                "success": False,
+                "error": "model is still processing the prior request",
+                "sender": self.name,
+                "bot": True,
+                "type": "text",
+                "data": None
+            })
+            return
+        self.thread = threading.Thread(target=self._prompt, args=(client, context_id, input), daemon=True)
+        self.thread.start()
 
-        self.status = "processing"
+    def _init(self):
+        self.status = GPTStatus.INITIALIZING
+        model_type = None
+        if "model_type" in self.settings:
+            model_type = self.settings["model_type"]
+        
+        self.gpt4all = GPT4All(model_name=self.settings["model"], model_path=self.model_path, model_type=model_type)
+        self.gpt4all.model.set_thread_count(self.model_threads)
+        self.status = GPTStatus.IDLE
+
+    def _destroy(self):
+        del self.gpt4all
+
+    def _prompt(self, client:Client, context_id:str, input:str):
+        self.status = GPTStatus.PROCESSING
         unix_time = int(time.time())
         current_date = time.strftime("%A %B %d %Y")
         current_time = time.strftime("%H:%M:%S %Z (UTC%z)")
@@ -140,6 +154,7 @@ My name is now Bob.
 
         output = self.gpt4all.generate(
             prompt=prompt,
+            streaming=False,
             # kwargs
             logits_size=self.settings["logits_size"],       # int = 0
             tokens_size=self.settings["tokens_size"],       # int = 0
@@ -167,7 +182,7 @@ My name is now Bob.
             "content": output
         })
 
-        self.status = "idle"
+        self.status = GPTStatus.IDLE
 
         client.send(packet=Packet.CHAT, content={
             "success": True,

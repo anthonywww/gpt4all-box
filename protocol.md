@@ -1,24 +1,21 @@
 # Protocol datagram specification
 
-All the data over the WebSocket must be represented as JSON.
+All the data over the WebSocket is represented in JSON.
 
 Packet types:
-- PING (C/S)
-  - Ping
-- SESSION (C/S)
-  - Create
-  - Resume
-  - Destroy
-- CHAT (C/S)
-  - Request
-  - Response
-- SYSTEM (S)
-  - System Message
 
-
-
-
-
+- PING
+  - C/S: `ping` - Ping the server.
+- SESSION
+  - C/S: `status` - Show the current session state relating to this client (if any).
+  - C:   `create` - Create a new session.
+  - C:   `resume` - Resume an active session by its id (if it has not expired).
+  - C/S: `destroy` - Destroy (force expire) an active session.
+- CHAT
+  - C/S: `text` - Send/receieve a text chat message to or from the chat agent or peer.
+- SYSTEM
+  - S:   `message` - Show a message from the server.
+  - C/S: `models` - Show all available models this server has.
 
 
 
@@ -44,6 +41,7 @@ Packet types:
 
 
 ## PING
+
 
 
 ### Ping
@@ -98,9 +96,8 @@ Simple Ping/Pong
 
 
 
+
 ## SESSION
-
-
 
 
 
@@ -143,10 +140,6 @@ In order to do anything the client must first send a session start request.
 
 
 
-
-
-
-
 ### Session Resume Request
 This will resume a session if it exists.
 
@@ -173,12 +166,6 @@ This will resume a session if it exists.
 	}
 }
 ```
-
-
-
-
-
-
 
 
 
@@ -222,8 +209,6 @@ Response status can be:
 	}
 }
 ```
-
-
 
 
 
@@ -294,9 +279,6 @@ This can only be sent to the session you are currently using.
 
 
 
-
-
-
 ### Chat Message
 This is a message from the client to the server.
 
@@ -307,6 +289,7 @@ This is a message from the client to the server.
 	"cid": "1a2b3c4d",
 	"content": {
 		"type": "text",
+		"session_id": "1234abcd",
 		"data": "<base64 encoded message>"
 	}
 }
@@ -320,6 +303,7 @@ This is a message from the client to the server.
 	"content": {
 		"success": true,
 		"error": false,
+		"session_id": "1234abcd",
 		"sender": "Alice",
 		"bot": true,
 		"type": "text",
@@ -353,12 +337,51 @@ This is a message from the client to the server.
 
 
 
-
 ## SYSTEM
 
 
-### System Message
-Message from the system (not the agent).
+
+
+
+
+### Models
+Listing of all supported models this system has.
+
+#### Request
+```json
+{
+	"msg": "models",
+	"cid": "1a2b3c4d",
+	"content": null
+}
+```
+
+#### Response
+```json
+{
+	"msg": "models",
+	"cid": "1a2b3c4d",
+	"content": {
+		"models": [
+			{
+				"name": "ggml-gpt4all-l13b-snoozy.bin",
+				"description": null
+			}
+		],
+		"success": true,
+		"error": null
+	}
+}
+```
+
+
+
+
+
+
+
+### Message
+A message from the system (not the agent).
 
 #### Response
 ```json
@@ -366,7 +389,7 @@ Message from the system (not the agent).
 	"msg": "system",
 	"cid": "1a2b3c4d",
 	"content": {
-		"type": "text",
+		"type": "message",
 		"data": "<base64 encoded message>"
 	}
 }
