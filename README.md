@@ -13,6 +13,12 @@ First build the Docker image:
 ./docker-build.sh
 ```
 
+NOTE: if you are on a Mac with arm64 (M1) you will need to use this instead:
+```sh
+docker build --platform=linux/amd64 -t gpt4all-box:latest .
+```
+
+
 Next run the image as a container, see examples below.
 
 You can open the `examples/ui.html` on your local web browser to access the client chat UI.

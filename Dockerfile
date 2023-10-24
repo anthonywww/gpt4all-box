@@ -10,8 +10,8 @@ RUN apt-get update -yq && apt-get install --no-install-recommends -yq git gcc g+
 RUN cd /tmp \
 	&& curl -so - https://packages.lunarg.com/lunarg-signing-key-pub.asc | tee /etc/apt/trusted.gpg.d/lunarg.asc \
 	&& curl -so /etc/apt/sources.list.d/lunarg-vulkan-jammy.list https://packages.lunarg.com/vulkan/lunarg-vulkan-jammy.list \
-	&& apt update -yq \
-	&& apt install -yq vulkan-sdk
+	&& apt-get update -yq \
+	&& apt-get install -yq vulkan-sdk
 
 ADD requirements.txt .
 RUN pip install -r requirements.txt --break-system-packages

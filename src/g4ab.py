@@ -444,9 +444,18 @@ class Server():
                     filename = service_model["filename"]
                     html_desc = BeautifulSoup(service_model["description"], features="html.parser")
                     url = f"{self.model_downloads}/{filename}"
+                    prompt_template = None
+                    system_prompt = None
 
                     if "url" in service_model:
                         url = service_model["url"]
+
+                    if "promptTemplate" in service_model:
+                        prompt_template = service_model["promptTemplate"]
+
+                    if "systemPrompt" in service_model:
+                        system_prompt = service_model["systemPrompt"]
+
 
                     json_content.append({
                         "name": service_model["name"], # display name of the model
@@ -456,8 +465,8 @@ class Server():
                         "type": service_model["type"].lower(),
                         "url": url,
                         "description": html_desc.get_text(' ', strip=True),
-                        "prompt_template": service_model["promptTemplate"] or None,
-                        "system_prompt": service_model["systemPrompt"] or None
+                        "prompt_template": prompt_template,
+                        "system_prompt": system_prompt
                     })
 
                 fp = open(self.model_path + "/models.json", 'w')
