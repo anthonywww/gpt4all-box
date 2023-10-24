@@ -23,19 +23,16 @@ You can open the `examples/ui.html` on your local web browser to access the clie
 
 This will run a development container WebSocket server on TCP port 8184.
 
-You can connect to this via the the **UI** or **CLI** HTML page examples located in `examples/`.
-
-Why are we not specifying `-u "$(id -u):$(id -g)"` ?
-
-Because the `~/.cache/gpt4all` directory must exist, and therefore it needs a user internal to the docker container.
-Apparently the value `model_path` can be set in our `gpt.py`, but we're not doing that right now.
+You can connect to this via the the **UI** HTML page examples located in `examples/`.
 
 ```sh
 docker run --rm -it \
+	-e SKIP_INTEGRITY_CHECK=1 \
 	-e SYSTEM_MESSAGE="This is an example!" \
 	-e HEARTBEAT_INTERVAL=5000 \
+	-u "$(id -u):$(id -g)" \
 	-p 8184:8184 \
-	-v "$(pwd):/mnt" \
+	-v "$(pwd):/home/gpt4all" \
 	gpt4all-box
 ```
 
@@ -43,8 +40,9 @@ docker run --rm -it \
 ```sh
 docker run --name gpt4all-box \
 	--detach \
+	-u "$(id -u):$(id -g)" \
 	--publish 8184:8184 \
-	--volume "$(pwd):/mnt" \
+	--volume "$(pwd):/home/gpt4all" \
 	gpt4all-box
 ```
 
@@ -54,8 +52,8 @@ docker run --name gpt4all-box \
 |----------------------------|---------------------------------|----------------------------------------------------------------------------------------|
 | MODEL_PATH                 | ./models/                       | Directory path of where to save the models.                                            |
 | MODEL_THREADS              | 4                               | Number of CPU threads for the LLM agent to use.                                        |
-| MODEL_DOWNLOADS            | https://raw.githubusercontent.com/nomic-ai/gpt4all/main/gpt4all-chat/metadata/models2.json | Where to download the model binaries from.                                             |
+| MODEL_DOWNLOADS            | https://raw.githubusercontent.com/nomic-ai/gpt4all/main/gpt4all-chat/metadata/models2.json | Where to download the model binaries from. |
 | SYSTEM_MESSAGE             |                                 | Set an announcement message to send to clients on connection.                          |
-| SKIP_INTEGRITY_CHECK       | False                           | Check the hash of each model individually against the models.json hash.                |
+| SKIP_INTEGRITY_CHECK       | False                           | Skip checking the hash of each model individually against the models.json hash.        |
 | HEARTBEAT_INTERVAL         | 5000                            | How often events are processed internally, such as session pruning.                    |
 | MAX_IDLE_SESSION_DURATION  | 180000                          | Execute stale session purge after this period.                                         |
