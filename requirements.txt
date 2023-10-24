@@ -1,4 +1,5 @@
 StrEnum
+bs4
 websocket-server
 requests
 gpt4all

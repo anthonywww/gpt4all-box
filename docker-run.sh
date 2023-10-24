@@ -8,5 +8,5 @@ docker run --rm -it \
 	-e SYSTEM_MESSAGE="This is an example!" \
 	-e HEARTBEAT_INTERVAL=5000 \
 	-p 8184:8184 \
-	-v "$(pwd):/mnt" \
-	gpt4all-box:dev
+	-v "$(pwd):/home/gpt4all" \
+	gpt4all-box:latest

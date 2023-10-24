@@ -26,6 +26,7 @@ class Gpt:
         self.model_path = model_path
         self.model_threads = thread_count
         self.settings = agent_settings
+        self.device = "cpu" # 'cpu' 'gpu' 'amd' 'intel' 'nvidia'
 
         if self.settings["name"] == None:
             self.settings["name"] = DEFAULT_NAME
@@ -35,7 +36,6 @@ class Gpt:
 
         self.local_ip = self._get_local_ip()
         self.public_ip = self._get_public_ip()
-        self.history = []
     
     def get_settings(self):
         return self.settings
@@ -43,10 +43,11 @@ class Gpt:
     def get_status(self):
         return self.status
 
-    def prompt(self, client:Client, context_id:str, input:str):
+    def prompt(self, client:Client, session_id:str, context_id:str, input:str):
         if self.get_status() == GPTStatus.INITIALIZING or self.gpt4all == None:
             client.send(packet=Packet.CHAT, content={
                 "success": False,
+                "session_id": session_id,
                 "error": "model is still initializing",
                 "sender": self.name,
                 "bot": True,
@@ -57,6 +58,7 @@ class Gpt:
         elif self.get_status() == GPTStatus.PROCESSING:
             client.send(packet=Packet.CHAT, content={
                 "success": False,
+                "session_id": session_id,
                 "error": "model is still processing the prior request",
                 "sender": self.name,
                 "bot": True,
@@ -64,7 +66,7 @@ class Gpt:
                 "data": None
             })
             return
-        self.thread = threading.Thread(target=self._prompt, args=(client, context_id, input), daemon=True)
+        self.thread = threading.Thread(target=self._prompt, args=(client, session_id, context_id, input), daemon=True)
         self.thread.start()
 
     def _init(self):
@@ -73,75 +75,35 @@ class Gpt:
         if "model_type" in self.settings:
             model_type = self.settings["model_type"]
         
-        self.gpt4all = GPT4All(model_name=self.settings["model"], model_path=self.model_path, model_type=model_type)
+        self.gpt4all = GPT4All(model_name=self.settings["model"], model_path=self.model_path, model_type=model_type, n_threads=self.model_threads, allow_download=False, device=self.device)
         self.gpt4all.model.set_thread_count(self.model_threads)
         self.status = GPTStatus.IDLE
 
     def _destroy(self):
         del self.gpt4all
 
-    def _prompt(self, client:Client, context_id:str, input:str):
+    def _prompt(self, client:Client, session_id:str, context_id:str, input:str):
         self.status = GPTStatus.PROCESSING
         unix_time = int(time.time())
         current_date = time.strftime("%A %B %d %Y")
         current_time = time.strftime("%H:%M:%S %Z (UTC%z)")
         messages = []
-        system_prompt = f"""Your name is {self.settings["name"]}.
-You are a LLM model.
+        system_prompt = f"""You are {self.settings["name"]}, a fully-capable Large Language Model personal assistant that can help with virtually anything.
 Your model file is {self.settings["model"]}.
 Your model seed is {self.settings["seed"]}.
 The current date is {current_date}.
 The current time is {current_time}.
 You are running on {sys.platform.title()} {platform.release()}.
-The current prompt software is running on Python {sys.version_info.major}.{sys.version_info.minor}.{sys.version_info.micro}.
 Your local IP Address is {self.local_ip} and public IP Address is {self.public_ip}.
-You have no direct access to the file-system or internet.
-gpt4all-box is a gpt4all User Interface and Command-Line Interface service packaged in a containerized environment.
+For tabular information return it in Markdown format, do not return HTML.
 """
-
-        supplemental_prompt = f"""If the user requests that you:
-
-1. Make a HTTP GET request to a URL.
-2. Change your name.
-
-You may do so by responding in the following format,
-by first responding with the string `{CMD_PREFIX}`,
-then insert a new-line, then write `URL ` (notice the space) and then the URL the user specified.
-Or if the user wants you to change your name, instead of `WEB `, write `NAME ` and then the desired
-name the user specified. Finally insert a new line, and then write `{CMD_SUFFIX}`
-and insert a new-line again. You can then type out your response to the user.
-An example of this would look like:
-
-```
-{CMD_PREFIX}
-URL https://example.com
-{CMD_SUFFIX}
-
-I have successfully made a HTTP GET request to [https://example.com](https://example.com).
-```
-
-or for a name change to Bob:
-
-```
-{CMD_PREFIX}
-NAME Bob
-{CMD_SUFFIX}
-```
-
-My name is now Bob.
-"""
+        
+        # gpt4all-box is a gpt4all User Interface and Command-Line Interface service packaged in a containerized environment.
 
         messages.append({
             "role": "system",
             "content": system_prompt
         })
-        #messages.append({
-        #    "role": "system",
-        #    "content": supplemental_prompt
-        #})
-
-        #for message in self.history:
-        #    messages.append(message)
 
         messages.append({
             "role": "user",
@@ -152,24 +114,22 @@ My name is now Bob.
         
         prompt = self._build_prompt(messages)
 
+        logging.getLogger("gpt4all.pyllmodel").setLevel(logging.CRITICAL)
+
         output = self.gpt4all.generate(
             prompt=prompt,
             streaming=False,
             # kwargs
-            logits_size=self.settings["logits_size"],       # int = 0
-            tokens_size=self.settings["tokens_size"],       # int = 0
-            n_past=self.settings["n_past"],                 # int = 0, 
-            n_ctx=self.settings["n_ctx"],                   # int = 1024, 
-            n_predict=self.settings["n_predict"],           # int = 128, 
+            max_tokens=self.settings["max_tokens"],         # int = 128,  formerly n_predict
             top_k=self.settings["top_k"],                   # int = 40, 
             top_p=self.settings["top_p"],                   # float = .9, 
             temp=self.settings["temperature"],              # float = .1, 
             n_batch=self.settings["n_batch"],               # int = 8, 
             repeat_penalty=self.settings["repeat_penalty"], # float = 1.2, 
             repeat_last_n=self.settings["repeat_last_n"],   # int = 10,    last n tokens to penalize
-            context_erase=self.settings["context_erase"]    # float = .5,  percent of context to erase if we exceed the context window
         )
 
+        """
         self.history.append({
             "time": unix_time,
             "role": "user",
@@ -181,11 +141,13 @@ My name is now Bob.
             "role": "assistant",
             "content": output
         })
+        """
 
         self.status = GPTStatus.IDLE
 
         client.send(packet=Packet.CHAT, content={
             "success": True,
+            "session_id": session_id,
             "error": None,
             "sender": self.settings["name"],
             "bot": True,
@@ -195,7 +157,7 @@ My name is now Bob.
 
 
 
-    def _build_prompt(self, messages:dict[str]):
+    def _build_prompt(self, messages:dict[str]) -> str:
         full_prompt = ""
 
         for message in messages:
@@ -205,7 +167,7 @@ My name is now Bob.
         
         full_prompt += """### Instruction: 
 The prompt below is a question to answer, a task to complete, or a conversation 
-to respond to; decide which and write an appropriate response.
+to respond to; decide which and write a response.
 
 ### Prompt: \n"""
 
@@ -219,7 +181,7 @@ to respond to; decide which and write an appropriate response.
 
         return full_prompt
 
-    def _get_local_ip(self):
+    def _get_local_ip(self) -> str:
         import socket
         s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
         s.connect(("1.1.1.1", 80))
@@ -227,7 +189,7 @@ to respond to; decide which and write an appropriate response.
         s.close()
         return local_ip
 
-    def _get_public_ip(self):
+    def _get_public_ip(self) -> str:
         import requests
         endpoint = 'https://checkip.amazonaws.com/'
         response = requests.get(endpoint)

@@ -52,9 +52,10 @@ docker run --name gpt4all-box \
 
 | Name                       | Default                         | Description                                                                            |
 |----------------------------|---------------------------------|----------------------------------------------------------------------------------------|
-| MODEL_PATH                 | models/                         | Directory path of where to save the models.                                            |
+| MODEL_PATH                 | ./models/                       | Directory path of where to save the models.                                            |
 | MODEL_THREADS              | 4                               | Number of CPU threads for the LLM agent to use.                                        |
-| MODEL_DOWNLOADS            | https://gpt4all.io/models       | Where to download the model binaries from.                                             |
+| MODEL_DOWNLOADS            | https://raw.githubusercontent.com/nomic-ai/gpt4all/main/gpt4all-chat/metadata/models2.json | Where to download the model binaries from.                                             |
 | SYSTEM_MESSAGE             |                                 | Set an announcement message to send to clients on connection.                          |
+| SKIP_INTEGRITY_CHECK       | False                           | Check the hash of each model individually against the models.json hash.                |
 | HEARTBEAT_INTERVAL         | 5000                            | How often events are processed internally, such as session pruning.                    |
 | MAX_IDLE_SESSION_DURATION  | 180000                          | Execute stale session purge after this period.                                         |

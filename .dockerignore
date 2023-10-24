@@ -1,0 +1,7 @@
+# Ignore stuff
+.git/
+bin/
+models/
+src/
+example/
+

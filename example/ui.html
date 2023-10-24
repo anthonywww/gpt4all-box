@@ -25,7 +25,7 @@
 						<div class="field">
 							<label class="label">Server</label>
 							<div class="control has-icons-left">
-								<input id="server" class="input" type="text" value="ws://localhost:8184" placeholder="wss://example.com">
+								<input id="server" class="input" type="text" value="ws://localhost:8184" placeholder="wss://example.com" minlength="4" maxlength="255">
 								<span class="icon is-small is-left">
 									<i class="fa fa-bolt"></i>
 								</span>
@@ -43,63 +43,136 @@
 					</div>
 					
 					<div class="box">
-						<h3 class="title is-3">New Session</h3>
+						<h3 class="title is-3">Session Manager</h3>
+
+						<div class="field">
+							<label class="label">Nickname <i class="fa fa-tag"></i></label>
+							<div class="control">
+								<input id="session-nickname" class="input" type="text" value="Chat #1" placeholder="Chat #1" minlength="1" maxlength="20">
+								<p class="help">A friendly name to use for the session.</p>
+							</div>
+						</div>
+
 						<div class="field">
 							<label class="label">Model <i class="fa fa-sitemap"></i></label>
 							<div class="control has-icons-left">
 								<div class="select is-fullwidth">
-									<select id="model" disabled>
+									<select id="session-model" disabled>
+										<option value="" selected>No Models Available</option>
+										<!--
 										<option value="ggml-gpt4all-j-v1.3-groovy.bin" title="Current best commercially licensable model based on GPT-J and trained by Nomic AI on the latest curated GPT4All dataset.">ggml-gpt4all-j-v1.3-groovy.bin</option>
-										<option value="ggml-gpt4all-l13b-snoozy.bin" title="Current best non-commercially licensable model based on Llama 13b and trained by Nomic AI on the latest curated GPT4All dataset." selected>ggml-gpt4all-l13b-snoozy.bin (Default)</option>
+										<option value="ggml-gpt4all-l13b-snoozy.bin" title="Current best non-commercially licensable model based on Llama 13b and trained by Nomic AI on the latest curated GPT4All dataset.">ggml-gpt4all-l13b-snoozy.bin (Default)</option>
+										-->
 									</select>
 								</div>
 								<div class="icon is-small is-left">
 									<i class="fa fa-file"></i>
 									</div>
-								<p class="help">The LLM model to use. See <a href="https://gpt4all.io/index.html" target="_blank">gpt4all</a> for more info. It should be noted the more parameters a model has, the slower it will take to process a response, however the more accurate the result.</p>
+								<p class="help">The LLM model to use. See <a href="https://gpt4all.io/index.html" target="_blank">gpt4all</a> for more info. This list is provided by whatever models the server supports.</p>
 							</div>
 						</div>
 
 						<div class="field">
 							<label class="label">Temperature <i class="fa fa-thermometer-half"></i></label>
 							<div class="control">
-								<input id="temperature" class="slider has-output is-fullwidth" type="range" min="0.0" max="1.0" value="0.8" step="0.1" disabled>
-								<output for="temperature">0.8</output>
-								<p class="help">Higher values like 0.8 will make the output more random (creative), while lower values like 0.2 will make it more focused and deterministic (precise).</p>
+								<input id="session-temperature" class="slider has-output is-fullwidth" type="range" min="0.0" max="2.0" value="0.8" step="0.1">
+								<output for="session-temperature">0.8</output>
+								<p class="help">
+									Temperature makes the process either more or less random.
+									A Temperature of 0.0 results in selecting the best token, making the output deterministic.
+									A Temperature of 1.0 represents a neutral setting with regard to randomness in the process.
+									A Temperature above 1.0 increasingly "levels the playing field", while at a Temperature between 0.0 and 1.0 the likelihood of the best token candidates grows even more.
+									In short, higher values like 0.8 will make the output more random (creative), while lower values like 0.2 will make it more focused and deterministic (precise).
+								</p>
 							</div>
 						</div>
-						
+
+						<p class="help">
+							<a id="show-advanced-toggle" class="no-select">
+								<i class="fa fa-chevron-down"></i>&nbsp;Show Advanced Model Parameters
+							</a>
+						</p>
+
+						<br>
+
+						<div id="advanced-model-parameters" style="display: none;">
+							<div class="columns">
+								<div class="column">
+									<div class="field">
+										<label class="label">n_batch</label>
+										<div class="control">
+											<input id="session-n_batch" class="input" type="number" value="8" placeholder="8" min="1" max="256" step="1">
+											<p class="help">The number of prompt tokens processed in parallel. Larger values decrease latency but increase resource requirements. (1 to 256)</p>
+										</div>
+									</div>
+								</div>
+								<div class="column">
+									<div class="field">
+										<label class="label">top_k</label>
+										<div class="control">
+											<input id="session-top_k" class="input" type="number" value="40" placeholder="40" min="0" max="16384" step="1">
+											<p class="help">
+												top_k limits candidate tokens to a fixed number after sorting by probability. Setting it higher than the vocabulary size deactivates this limit. (0 to 16384)
+											</p>
+										</div>
+									</div>
+								</div>
+								<div class="column">
+									<div class="field">
+										<label class="label">top_p</label>
+										<div class="control">
+											<input id="session-top_p" class="input" type="number" value="0.90" placeholder="0.90" min="0.0" max="1.0" step="0.01">
+											<p class="help">
+												top_p selects tokens based on their total probabilities. For example, a value of 0.8 means "include the best tokens, whose accumulated probabilities reach or just surpass 80%". Setting Top-p to 1, which is 100%, effectively disables it. (0.00 to 1.00)
+											</p>
+										</div>
+									</div>
+								</div>
+							</div>
+
+							<div class="columns">
+								<div class="column">
+									<div class="field">
+										<label class="label">repeat_penalty</label>
+										<div class="control">
+											<input id="session-repeat_penalty" class="input" type="number" value="1.20" placeholder="1.20" min="0.00" max="128.0" step="0.01">
+											<p class="help">Penalize the model for repetition. Higher values result in less repetition. (0.00 to 128.00)</p>
+										</div>
+									</div>
+								</div>
+								<div class="column">
+									<div class="field">
+										<label class="label">repeat_last_n</label>
+										<div class="control">
+											<input id="session-repeat_last_n" class="input" type="number" value="10" placeholder="10" min="0" max="16384" step="1">
+											<p class="help">Last <code>n</code> tokens to penalize. (0 to 16384)</p>
+										</div>
+									</div>
+								</div>
+								<div class="column">
+									<div class="field">
+										<label class="label">max_tokens</label>
+										<div class="control">
+											<input id="session-max_tokens" class="input" type="number" value="200" placeholder="200" min="1" max="65535" step="1">
+											<p class="help">The maximum number of tokens to generate. This is identical to the <code>n_predict</code> parameter. (1 to 65535)</p>
+										</div>
+									</div>
+								</div>
+							</div>
+
+							<br>
+							
+						</div>
+
 						<div class="buttons">
-							<button id="new-session" class="button is-success" title="Creates a new session based on the parameters specified." disabled><i class="fa fa-plus"></i>&nbsp;Create Session</button>
+							<button id="new-session" class="button is-info" title="Creates a new session based on the parameters specified." disabled><i class="fa fa-plus"></i>&nbsp;Spawn Session</button>
 						</div>
 					</div>
 
-					<!--
-					<div class="box">
-						<h3 class="title is-3">Current Session</h3>
-						<div id="session-information">
-							<table class="table is-striped is-fullwidth">
-								<tbody class="no-select">
-									<tr>
-										<td><i class="fa fa-plug"></i>&nbsp;State</td>
-										<td><span class="tag is-danger"><i class="fa fa-times"></i>&nbsp;Disconnected</span></td>
-									</tr>
-									<tr>
-										<td><i class="fa fa-exchange"></i>&nbsp;Ping Avg.</td>
-										<td>--</td>
-									</tr>
-									<tr>
-										<td><i class="fa fa-file"></i>&nbsp;Current Model</td>
-										<td>--</td>
-									</tr>
-								</tbody>
-							</table>
-						</div>
-					</div>
-					-->
 					<div class="has-text-left">
 						<p class="help no-select">
-							This is a demo of the capabilities of <a href="https://github.com/anthonywww/gpt4all-box" target="_blank">gpt4all-box</a>. Powered by <a href="https://github.com/nomic-ai/gpt4all" target="_blank">gpt4all</a>.
+							This is a demo of the capabilities of <a href="https://github.com/anthonywww/gpt4all-box" target="_blank">gpt4all-box</a>.
+							Powered by <a href="https://github.com/nomic-ai/gpt4all" target="_blank">gpt4all</a>.
 						</p>
 						<p class="help no-select">
 							<span><i class="fa fa-cube"></i>&nbsp;gpt4all-box 0.1.0</span>
@@ -110,18 +183,25 @@
 					<div class="box">
 						<div class="tabs is-medium">
 							<ul id="session-tabs">
-								<li class="is-active">
+								<li class="is-active is-info-tab">
 									<a class="session-tabs-link">
-										<span class="icon is-small"><i class="fa fa-bars" aria-hidden="true"></i></span>
-										<span>Logs</span>
+										<span class="icon is-small"><i class="fa fa-info-circle" aria-hidden="true"></i></span>
+										<span>Info</span>
 									</a>
 								</li>
 							</ul>
 						</div>
-						<div id="logs-tab">
-							<h3 class="title is-3">Client Log</h3>
+						<div id="info-tab">
+							<h3 class="title is-3">Welcome</h3>
 							<div class="content">
-								<div id="logs" class="logs"></div>
+								<div id="info" class="info">
+									<p><b>Status:</b>&nbsp;<code id="info-status">disconnected</code></p>
+								</div>
+
+								<br>
+
+								<div id="system-message" class="chat-message chat-message-system" style="display: none;"></div>
+
 							</div>
 						</div>
 						<div id="session-tab" style="display: none;">
@@ -170,10 +250,11 @@
 
 						</div>
 					</div>
-				</section>
+				</div>
 			</div>
-		</div>
+		</section>
 	</body>
+
 	<script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.7.0/jquery.min.js" integrity="sha512-3gJwYpMe3QewGELv8k/BX9vcqhryRdzRMxVfq6ngyWXwo03GFEzjsUm8Q7RZcHPHksttq7/GFoxjCVUjkjvPdw==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
 	<script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/prism.min.js" integrity="sha512-7Z9J3l1+EYfeaPKcGXu3MS/7T+w19WtKQY/n+xzmw4hZhJ9tyYmcUS+4QqAlzhicE5LAfMQSF3iFTK9bQdTxXg==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
 	<script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/plugins/autoloader/prism-autoloader.min.js" integrity="sha512-SkmBfuA2hqjzEVpmnMt/LINrjop3GKWqsuLSSB3e7iBmYK7JuWw4ldmmxwD9mdm2IRTTi0OxSAfEGvgEi0i2Kw==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>

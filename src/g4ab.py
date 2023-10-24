@@ -10,6 +10,7 @@ import hashlib
 import logging
 import traceback
 
+from bs4 import BeautifulSoup
 from websocket_server import WebsocketServer
 from utils import *
 from timer import Timer
@@ -23,7 +24,7 @@ PORT = 8184
 HEARTBEAT_INTERVAL = 1000 * 5 # 5 seconds
 MAX_IDLE_SESSION_DURATION = 1000 * 60 * 3 # 30 minutes
 MODEL_THREADS = 4
-MODEL_DOWNLOADS = "https://gpt4all.io/models"
+MODEL_DOWNLOADS = "https://raw.githubusercontent.com/nomic-ai/gpt4all/main/gpt4all-chat/metadata/models2.json"
 
 logger = logging.getLogger(__name__)
 
@@ -41,6 +42,7 @@ class Server():
         self.model_threads = int(os.getenv("MODEL_THREADS", MODEL_THREADS))
         self.model_downloads = os.getenv("MODEL_DOWNLOADS", MODEL_DOWNLOADS)
         self.model_path = os.getenv("MODEL_PATH", "./models/")
+        self.skip_integrity_check = os.getenv("SKIP_INTEGRITY_CHECK", False)
 
         thread = threading.Thread(target=self._check_models, args=(), daemon=True)
         thread.start()
@@ -64,7 +66,7 @@ class Server():
         logger.info(f"Sending shutdown broadcast to all clients ...")
         for c in self.clients:
             c.send(packet=Packet.SYSTEM, content={
-                "type": "text",
+                "type": "message",
                 "data": b64e("The server is going offline immediately!")
             })
         
@@ -86,10 +88,8 @@ class Server():
                 })
 
         # Automatically send the client a list of models this server supports.
-        client.send(packet=Packet.SYSTEM, content={
-            "type": "models",
-            "data": self.models
-        })
+        if self.gpt_ready:
+            self._send_models(client)
 
         self.clients.append(client)
 
@@ -297,11 +297,14 @@ class Server():
     def _process_chat(self, client:Client, session_id:str, message:str, context_id:str):
         message = b64d(message)
 
+        # TODO: check if session id is valid
+
         logger.info(f"Client #{client.get_id()} ({client.get_address()}:{client.get_port()}) session id {session_id} prompt: {message}")
         
         if not self.gpt_ready:
             client.send(packet=Packet.CHAT, content={
                 "success": False,
+                "session_id": session_id,
                 "error": "initializing models"
             }, context_id=context_id)
             client.send(packet=Packet.SYSTEM, content={
@@ -335,27 +338,76 @@ class Server():
         if gpt.get_status() == GPTStatus.PROCESSING:
             client.send(packet=Packet.CHAT, content={
                 "success": False,
+                "session_id": session_id,
                 "error": "still processing prior request"
             }, context_id=context_id)
             return
 
-        gpt.prompt(client=client, context_id=context_id, input=message)
+        gpt.prompt(client=client, session_id=session_id, context_id=context_id, input=message)
 
 
-    def _download_model(self, filename):
+    def _send_models(self, client:Client) -> None:
+        if not client.has_sent_models():
+            client.send(packet=Packet.SYSTEM, content={
+                    "type": "models",
+                    "data": self.models
+                })
+            client.set_has_sent_models(True)
 
-        if "model_list" in self:
-            r = requests.get(self.model_downloads)
+
+    """
+    This function is actually quite slow because it's single-threaded.
+    Unlike if this were re-written in Java we could make use of multi-threaded xxhash.
+    """
+    def _check_hash(self, filename:str, expected_hash:str) -> bool:
+        if os.path.isfile(f"{self.model_path}/{filename}"):
+            #file_hash = hashlib.md5(open(f"{self.model_path}/{filename}", "rb").read()).hexdigest()
+            md5 = hashlib.md5()
             
-            if not r.status_code == 200 and not r.status_code == 304:
-                logger.error(f"Failed to get model list {self.model_downloads}: HTTP Status {r.status_code}")
-                return
-           
-            json_content = r.json()
+            with open(f"{self.model_path}/{filename}", "rb") as f:
+                while True:
+                    buf = f.read(2**18)
+                    if not buf:
+                        break
+                    md5.update(buf)
+
+            file_hash = md5.hexdigest()
+
+            if file_hash == expected_hash:
+                return True        
+        return False
 
 
+    def _download_model(self, url:str, filename:str) -> bool:
 
-    def _check_models(self):
+        logger.info(f"Downloading model ({filename}) from {url} ...")
+
+        retry_count = 0
+        
+        while retry_count <= 3:
+            try:
+                response = requests.get(url, stream=True)
+
+                if not response.status_code == 200 and not response.status_code == 304:
+                    logger.error(f"Failed to get model list {self.model_downloads}: HTTP Status {response.status_code}")
+                    return False
+                
+                with open(f"{self.model_path}/{filename}", "wb") as f:
+                    for chunk in response.iter_content(chunk_size=16 * 1024):
+                        f.write(chunk)
+                    f.close()
+
+                return True
+            except:
+                logger.warning(f"Download for model {url} failed, retrying ...")
+                retry_count = retry_count + 1
+                pass
+        
+        logger.error(f"Tried downloading model {url} 3-times and failed.")
+        return False
+
+
+    def _check_models(self) -> None:
         if not os.path.exists(self.model_path):
             os.makedirs(self.model_path)
         else:
@@ -373,97 +425,94 @@ class Server():
             content = fp.read()
             fp.close()
 
-            json_content = [json.loads(content)]
+            json_content = json.loads(content)
             
-            # Get from service endpoint
-            r = requests.get(self.model_downloads + "/models.json")
-            json_service = None
+            # Populate the models.json with defaults
+            if len(json_content) == 0:
 
-            if not r.status_code == 200 and not r.status == 304:
-                logger.warning("Failed to fetch {self.model_downloads}/models.json!")
-            else:
+                # Get from service endpoint
+                logger.info(f"Empty models.json, downloading latest models from {self.model_downloads} ...")
+                r = requests.get(self.model_downloads)
+
+                if not r.status_code == 200 and not r.status == 304:
+                    raise Exception(f"Failed to fetch {self.model_downloads}!")
+                
                 json_service = r.json()
 
-                # Populate the models.json with defaults
-                if len(json_content) == 0:
-                    for service_model in json_service:
-                        
-                        json_content.append({
-                            "name": service_model["name"],
-                            "file": service_model["filename"],
-                            "hash": service_model["md5sum"],
-                            "mem_gb": service_model["ramrequired"],
-                            "parameters": service_model["parameters"],
-                            "type": service_model["type"],
-                            "description": service_model["description"]
-                        })
+                for service_model in json_service:
 
-                    fp = open(self.model_path + "/models.json", 'w')
-                    fp.write(json.dumps(json_content))
-                    fp.flush()
-                    fp.close()
+                    filename = service_model["filename"]
+                    html_desc = BeautifulSoup(service_model["description"], features="html.parser")
+                    url = f"{self.model_downloads}/{filename}"
+
+                    if "url" in service_model:
+                        url = service_model["url"]
+
+                    json_content.append({
+                        "name": service_model["name"], # display name of the model
+                        "file": filename, # filename of the model
+                        "hash": service_model["md5sum"], # md5 sum of the model
+                        "mem": float(service_model["ramrequired"]), # required memory in gb
+                        "type": service_model["type"].lower(),
+                        "url": url,
+                        "description": html_desc.get_text(' ', strip=True),
+                        "prompt_template": service_model["promptTemplate"] or None,
+                        "system_prompt": service_model["systemPrompt"] or None
+                    })
+
+                fp = open(self.model_path + "/models.json", 'w')
+                fp.write(json.dumps(json_content, indent=4, sort_keys=True))
+                fp.flush()
+                fp.close()
 
 
             for model in json_content:
                 
+                name = model["name"]
+                filename = model["file"]
+                hash = model["hash"]
+                url = model["url"]
+
                 valid = False
 
                 # Check the file hash against what was downloaded
-                if os.path.isfile("{self.model_path}/{model.file}"):
-                    file_hash = hashlib.md5(open("{self.model_path}/{model.file}", "rb").read()).hexdigest()
-                    expected_hash = model["hash"]
-                    if file_hash == expected_hash:
+                if self.skip_integrity_check == False:
+                    if self._check_hash(filename, hash):
+                        logger.info(f"Verified model integrity: {name} ({filename})")
                         valid = True
+                    else:
+                        logger.warning(f"Model integrity check for: {name} ({filename}) failed. Re-downloading ...")
+                else:
+                    valid = True
 
                 # Check if the file exists, if not download it
-                if not os.path.isfile("{self.model_path}/{model.file}") and valid:
-                    logger.info("Downloading model {model.file} ...")
-                    response = requests.get("{self.model_downloads}/{model.file}", stream=True)
-                    with open("{self.model_path}/{model.file}", "wb") as f:
-                        for chunk in response.iter_content(chunk_size=16 * 1024):
-                            f.write(chunk)
-                        f.flush()
-                        file_hash = hashlib.md5(open("{self.model_path}/{model.file}", "rb").read()).hexdigest()
-                        expected_hash = model["hash"]
-                        if not file_hash == expected_hash:
-                            raise Exception("Hash verification failed for model {model.file}: expected {expected_hash}")
+                if not os.path.isfile(f"{self.model_path}/{filename}") or not valid:
+                    success = self._download_model(url, filename)
+                    if not success:
+                        logger.warning(f"Failed to download and save model {name} ({filename}) from {url} !")
+                        continue
 
-            """
-            for service_model in json_service:
-                for model in json_content:
+                    # Verify hash of the downloaded file
+                    if self.skip_integrity_check == False:
+                        if self._check_hash(filename, hash):
+                            valid = True
+                    else:
+                        valid = True
 
-                    if "file" in model and "md5sum" in model:
-                        if model["file"] == service_model["filename"]:
-                            if not model["md5sum"] == service_model["md5sum"]:
-                                # hashes do not match, replace our entry with the service's entry
-                                pass
 
-                if not service_model["filename"] in json_content:
-                    json_content.append({
-                        "hash": service_model
-                    })
-
-            for model in json_content:
-                print(model)
-                if not "md5sum" in model or not "filename" in model or not "description" in model:
-                    raise Exception()
-                
-                # Check if the file exists
-                model_file_name = model["filename"]
-                if not os.path.isfile("{self.model_path}/{model_file_name}"):
-                    response = requests.get("{self.model_downloads}/{model_file_name}", stream=True)
-
-                    with open(model_file_name, "wb") as f:
-                        for chunk in response.iter_content(chunk_size=16 * 1024):
-                            f.write(chunk)
-                        f.flush()
-                    
-                    hash = hashlib.md5(f.read()).hexdigest()
-            """
+                # After all validations are complete...
+                if valid:
+                    self.models.append(model)
 
             if len(json_content) == 0:
                 raise Exception("No models to load!")
 
+
+            self.gpt_ready = True
+            logger.info(f"Successfully verified and loaded {len(self.models)} models")
+
+            for client in self.clients:
+                self._send_models(client)
 
         except:
             logger.error("error parsing models.json:")

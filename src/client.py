@@ -12,6 +12,7 @@ logger = logging.getLogger(__name__)
 class Client:
 
     def __init__(self, wsclient):
+        self.sent_models = False
         self.wsclient = wsclient
         self.sessions = [] # These are just references to the original object, just as the one in g4ab.py
         logger.debug(f"Client #{self.get_id()} ({self.get_address()}:{self.get_port()} initialized)")
@@ -67,3 +68,9 @@ class Client:
 
     def get_port(self):
         return self.wsclient["address"][1]
+
+    def set_has_sent_models(self, value:bool):
+        self.sent_models = value
+
+    def has_sent_models(self) -> bool:
+        return self.sent_models

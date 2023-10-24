@@ -13,8 +13,8 @@
 
 	const NAME = "gpt4all-box";
 	const SHORT_NAME = "g4ab";
-	const VERSION = {major:1, minor:1, patch:0};
-	const PING_INTERVAL = 1000;
+	const VERSION = {major:1, minor:3, patch:0};
+	const PING_INTERVAL = 10_000;
 	const WATCHDOG_INTERVAL = 1000 * 10;
 
 	const Packet = {
@@ -66,6 +66,7 @@
 				"session": [],
 				"chat": []
 			};
+			this._models = [];
 			this._sessions = [];
 			this._lastPingMilliseconds = 0;
 			this._cids = [];
@@ -91,12 +92,25 @@
 			return sessions;
 		}
 
-		getSessions() {
+		getSessionIds() {
 			var sessionIds = [];
-			for (var s in this.getSessions()) {
-				sessionIds.append(s.id);
+			for (var session in this.getSessions()) {
+				sessionIds.append(session.id);
 			}
 			return sessionIds;
+		}
+
+		getSessionById(sessionId) {
+			for (var session in this.getSessions()) {
+				if (session.id == sessionId) {
+					return session;
+				}
+			}
+			return null;
+		}
+
+		getModels() {
+			return this._models;
 		}
 
 		/**
@@ -225,18 +239,22 @@
 
 				} else if (data.msg == Packet.CHAT) {
 					const type = data.content.type;
+					const session_id = data.content.session_id;
 					const sender = data.content.sender;
 					const message = atob(data.content.data);
 					const bot = data.content.bot;
 					const error = data.content.error;
 					for (var i in this._eventListeners["chat"]) {
-						this._eventListeners["chat"][i](type, sender, message, bot, error);
+						this._eventListeners["chat"][i](type, session_id, sender, message, bot, error);
 					}
 				} else if (data.msg == Packet.SYSTEM) {
 					const type = data.content.type;
 
 					if (type == "models") {
 						this._models = data.content.data;
+						for (var i in this._eventListeners["system"]) {
+							this._eventListeners["system"][i](type, data.content.data);
+						}
 					} else if (type == "message") {
 						const message = atob(data.content.data);
 						for (var i in this._eventListeners["system"]) {
@@ -267,6 +285,7 @@
 			return this._lastPingMilliseconds;
 		}
 
+		/*
 		getModels(callback) {
 			if (!this.isConnected()) {
 				return 0;
@@ -291,6 +310,7 @@
 				}
 			}).bind(this));
 		}
+		*/
 
 		sessionCreate(settings, callback) {
 			if (!this.isConnected()) {
@@ -313,9 +333,9 @@
 				}
 				for (var i in this._eventListeners["session"]) {
 					var type = "create";
-					var sessionId = content["session_id"];
+					var session_id = content["session_id"];
 					var error = content["error"];
-					this._eventListeners["session"][i](type, error, sessionId);
+					this._eventListeners["session"][i](type, error, session_id);
 				}
 				if (typeof(callback) == "function") {
 					callback(content);
@@ -323,14 +343,14 @@
 			}).bind(this));
 		}
 
-		sessionResume(sessionId, callback) {
+		sessionResume(session_id, callback) {
 			if (!this.isConnected()) {
 				this._log("error", "attempted to resume a session when not connected")
 				return;
 			}
 			this._send(Packet.SESSION, {
 				"request": "resume",
-				"session_id": sessionId
+				"session_id": session_id
 			}, ((response) => {
 				const msg = response.msg;
 				const contextId = response.cid;
@@ -339,14 +359,14 @@
 
 					var already_exists = false;
 					for (sess in this._sessions) {
-						if (sess.id == sessionId) {
+						if (sess.id == session_id) {
 							already_exists = true;
 						}
 					}
 
 					if (!already_exists) {
 						var session = {
-							"id": sessionId,
+							"id": session_id,
 							"created": new Date().getTime() / 1000
 						};
 						this._sessions.push(session);
@@ -355,7 +375,7 @@
 				for (var i in this._eventListeners["session"]) {
 					var type = "resume";
 					var error = content["error"];
-					this._eventListeners["session"][i](type, error, sessionId);
+					this._eventListeners["session"][i](type, error, session_id);
 				}
 				if (typeof(callback) == "function") {
 					callback(content);
@@ -363,27 +383,29 @@
 			}).bind(this));
 		}
 
-		sessionDestroy(sessionId, callback) {
+		sessionDestroy(session_id, callback) {
 			if (!this.isConnected()) {
 				this._log("error", "attempted to destroy a session when not connected")
 				return;
 			}
 			this._send(Packet.SESSION, {
 				"request": "destroy",
-				"session_id": sessionId
+				"session_id": session_id
 			}, ((response) => {
 				const msg = response.msg;
 				const contextId = response.cid;
 				const content = response.content;
 				if (content.success) {
 					for (var sess in this._sessions) {
-						this._sessions.remove(sess);
+						if (sess.id == session_id) {
+							this._sessions.remove(sess);
+						}
 					}
 				}
 				for (var i in this._eventListeners["session"]) {
 					var type = "destroy";
 					var error = content["error"];
-					this._eventListeners["session"][i](type, error, sessionId);
+					this._eventListeners["session"][i](type, error, session_id);
 				}
 				if (typeof(callback) == "function") {
 					callback(content);
@@ -391,14 +413,14 @@
 			}).bind(this));
 		}
 
-		sessionStatus(sessionId, callback) {
+		sessionStatus(session_id, callback) {
 			if (!this.isConnected()) {
 				this._log("error", "attempted to get the status about a session when not connected")
 				return;
 			}
 			this._send(Packet.SESSION, {
 				"request": "status",
-				"session_id": sessionId
+				"session_id": session_id
 			}, ((response) => {
 				const msg = response.msg;
 				const contextId = response.cid;
@@ -408,7 +430,7 @@
 				const status = content["status"];
 				const settings = content["settings"];
 				for (var i in this._eventListeners["session"]) {
-					this._eventListeners["session"][i](type, error, sessionId, status, settings);
+					this._eventListeners["session"][i](type, error, session_id, status, settings);
 				}
 				if (typeof(callback) == "function") {
 					callback(content);
@@ -416,26 +438,27 @@
 			}).bind(this));
 		}
 
-		sendChat(sessionId, message) {
+		sendChat(session_id, message) {
 			if (!this.isConnected()) {
-				this._log("error", "attempted to get the status about a session when not connected")
+				this._log("error", "attempted to send a chat message when not connected")
 				return;
 			}
 			this._send(Packet.CHAT, {
 				"type": "text",
-				"session_id": sessionId,
+				"session_id": session_id,
 				"data": btoa(message)
 			}, ((response) => {
 				const msg = response.msg;
 				const contextId = response.cid;
 				const content = response.content;
 				const type = "text";
+				const session_id = response.session_id;
 				const sender = content.sender;
 				const message = atob(content.data);
 				const bot = content.bot;
 				const error = content.error;
 				for (var i in this._eventListeners["chat"]) {
-					this._eventListeners["chat"][i](type, error, sender, message, bot);
+					this._eventListeners["chat"][i](type, session_id, sender, message, bot, error);
 				}
 				if (typeof(callback) == "function") {
 					callback(content);
@@ -448,7 +471,19 @@
 			if (!this._settings.debug) {
 				return;
 			}
-			console[level](`[${NAME}]`, ...objects);
+
+			if (level == "info") {
+				console.info(`[${NAME}]`, ...objects);
+			} else if (level == "warn") {
+				console.warn(`[${NAME}]`, ...objects);
+			} else if (level == "error") {
+				console.error(`[${NAME}]`, ...objects);
+			} else {
+				//console[level](`[${NAME}]`, ...objects);
+				if (this.debug == true) {
+					console.log(`[${NAME}]`, ...objects);
+				}
+			}
 		}
 
 		_ping() {

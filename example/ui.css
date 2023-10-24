@@ -20,6 +20,13 @@ html, body {
 	}
 }
 
+/*system message banner*/
+#system-message {
+	padding: 8px;
+	background-color: rgba(var(--color-chat-system), 0.2);
+	border-left: 4px solid rgba(var(--color-chat-system), 0.9);
+}
+
 .logs {
 	display: block;
 	position: relative;
